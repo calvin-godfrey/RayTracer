@@ -11,22 +11,19 @@
 static double toRads(double deg);
 static void putShade(char, FILE*);
 static void drawRgb(Rgb*, FILE*);
+static double calcCoord(double, uint16_t, uint16_t);
 
 void raycast(uint16_t width, uint16_t height, FILE* file, Sphere** spheres, int sphereLength) {
-    Vec3* camera = makeVec3(0.0, 0, 0);
-    Vec3* light = makeVec3(0, 6, 0);
+    Vec3* camera = makeVec3(-10, 0, 0);
+    Vec3* light = makeVec3(0, 60, 0);
 
     double zMax = 1 / cos(toRads(vFOV) / 2.0);
     double yMax = 1 / cos(toRads(hFOV) / 2.0);
 
     for (uint16_t i = 0; i < height; i++) {
         for (uint16_t j = 0; j < width; j++) {
-            int16_t zOffset = (height / 2 - i);
-            double zprop = zOffset / (height / 2.0);
-            double zCoord = zMax * zprop;
-            int16_t yOffset = (width / 2 - j);
-            double yprop = yOffset / (width / 2.0);
-            double yCoord = yMax * yprop;
+            double zCoord = calcCoord(zMax, height, i);
+            double yCoord = calcCoord(yMax, width, j);
             Vec3* coord = makeVec3(1 + camera -> x, yCoord, -zCoord);
             double minDistance = 10000.0;
             Ray* ray = makeRay(camera, coord);
@@ -40,9 +37,11 @@ void raycast(uint16_t width, uint16_t height, FILE* file, Sphere** spheres, int 
                 if (normal == NULL) continue;
                 if (before != minDistance) {
                     hit = sphere;
+                    free(normalHit);
                     normalHit = normal;
                     index = i;
                 }
+                if (normal != NULL && before == minDistance) free(normal);
             }
             if (normalHit == NULL) {
                 putShade(255, file);
@@ -58,6 +57,7 @@ void raycast(uint16_t width, uint16_t height, FILE* file, Sphere** spheres, int 
                         shadow = 1;
                         dummy = 10000.0;
                     }
+                    if (normal != NULL) free(normal);
                 }
                 Vec3* lightDirection = sub(light, hitLocation);
                 normalize(lightDirection);
@@ -69,12 +69,17 @@ void raycast(uint16_t width, uint16_t height, FILE* file, Sphere** spheres, int 
                 free(finalColor);
                 free(hitLocation);
                 free(lightDirection);
+                freeRay(lightRay);
+                free(lightRay);
             }
             free(coord);
+            freeRay(ray);
             free(ray);
             if (normalHit != NULL) free(normalHit);
         }
     }
+    free(camera);
+    free(light);
 }
 
 double toRads(double deg) {
@@ -91,4 +96,10 @@ static void drawRgb(Rgb* rgb, FILE* file) {
     fputc(rgb -> b, file);
     fputc(rgb -> g, file);
     fputc(rgb -> r, file);
+}
+
+static double calcCoord(double max, uint16_t coord, uint16_t value) {
+    int16_t offset = (coord / 2 - value);
+    double prop = offset / (coord / 2.0);
+    return max * prop;
 }

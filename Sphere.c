@@ -13,7 +13,6 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c) {
 
 void freeSphere(Sphere* sphere) {
     free(sphere -> center);
-    free(sphere -> color);
 }
 
 Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
@@ -52,10 +51,6 @@ Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
         if (ans < *minDistance) *minDistance = ans;
         Vec3* point = getPoint(ray, ans);
         Vec3* normal = sub(point, sphere -> center);
-        // if (sphere -> color -> r != 0 && ray -> from -> y == 100.0) {
-        //     if (normal == NULL) printf("BADBADBAD\n");
-        //     printf("hdoifjsoere\n");
-        // }
         normalize(normal);
         free(L);
         free(point);

@@ -13,8 +13,6 @@ Ray* makeRay(Vec3* from, Vec3* to) {
 }
 
 void freeRay(Ray* ray) {
-    free(ray -> from);
-    free(ray -> to);
     free(ray -> dir);
 }
 
