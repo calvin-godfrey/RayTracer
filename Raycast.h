@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "Sphere.h"
 
-void raycast(uint16_t, uint16_t, FILE*, Sphere**, int);
+void raycast(FILE*, Sphere**, int);
 
 
 #endif

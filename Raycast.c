@@ -13,12 +13,12 @@ static void putShade(char, FILE*);
 static void drawRgb(Rgb*, FILE*);
 static double calcCoord(double, uint16_t, uint16_t);
 
-void raycast(uint16_t width, uint16_t height, FILE* file, Sphere** spheres, int sphereLength) {
-    Vec3* camera = makeVec3(-10, 0, 0);
-    Vec3* light = makeVec3(0, 60, 0);
+void raycast(FILE* file, Sphere** spheres, int sphereLength) {
+    Vec3* camera = makeVec3(-5, 0, 0);
+    Vec3* light = makeVec3(-0, 60, 0);
 
     double zMax = 1 / cos(toRads(vFOV) / 2.0);
-    double yMax = 1 / cos(toRads(hFOV) / 2.0);
+    double yMax = 1 / cos(toRads(hFOV) / 2.0) * (aspectRatio + 1) / 2.0;
 
     for (uint16_t i = 0; i < height; i++) {
         for (uint16_t j = 0; j < width; j++) {
