@@ -24,9 +24,9 @@ void printRay(Ray* ray) {
 }
 
 Vec3* getPoint(Ray* ray, double time) {
-    double x = ray -> from -> x + (ray -> to -> x - ray -> from -> x) * time;
-    double y = ray -> from -> y + (ray -> to -> y - ray -> from -> y) * time;
-    double z = ray -> from -> z + (ray -> to -> z - ray -> from -> z) * time;
+    double x = ray -> from -> x + (ray -> dir -> x) * time;
+    double y = ray -> from -> y + (ray -> dir -> y) * time;
+    double z = ray -> from -> z + (ray -> dir -> z) * time;
 
     Vec3* ans = malloc(sizeof(Vec3));
     ans -> x = x;
@@ -36,6 +36,6 @@ Vec3* getPoint(Ray* ray, double time) {
 }
 
 int onLine(Ray* ray, double d) {
-    double toD = (ray -> to -> x) / (ray -> dir -> x);
+    double toD = (ray -> to -> x - ray -> from -> x) / (ray -> dir -> x);
     return toD >= d ? 1 : 0;
 }

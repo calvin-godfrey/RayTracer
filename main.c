@@ -3,11 +3,17 @@
 #include <inttypes.h>
 #include <time.h>
 #include <math.h>
+#include <string.h>
 #include "Raycast.h"
 #include "Color.h"
 #include "Sphere.h"
 #include "Vec3.h"
 #include "Consts.h"
+
+uint16_t width;
+uint16_t height;
+double aspectRatio;
+double vFOV;
 
 static void writeHeader(FILE* file) {
     // 800x600 image, 24 bits per pixel
@@ -20,14 +26,29 @@ static void writeHeader(FILE* file) {
     fwrite(header, sizeof(char), 18, file);
 }
 
+static FILE* setGlobalVariables(char** argv) {
+    sscanf(argv[1], "%"SCNu16, &width);
+    sscanf(argv[2], "%"SCNu16, &height);
+    aspectRatio = (width * 1.0) / height;
+    vFOV = atan(tan(hFOV * PI / 360.0) * 1.0 / aspectRatio) * 360 / PI;
+    FILE* file = fopen(argv[3], "w+");
+    writeHeader(file);
+    return file;
+}
+
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        printf("Wrong number of arguments: expected file name\n");
+    if (argc == 2 && strcmp(argv[1], "--help") == 0) {
+        printf("Usage:\n");
+        printf("raycaster <width> <height> <outputfile>\n");
+        printf("e.g. raycaster 640 480 file.tga\n");
+        printf("Note that the image generated uses the tga format\n");
+        return 1;
+    } else if (argc != 4) {
+        printf("Expected 4 arguments\n");
         return 1;
     }
     srand(time(0));
-    FILE* file = fopen(argv[1], "w+");
-    writeHeader(file);
+    FILE* file = setGlobalVariables(argv);
     Rgb* red = makeRgb(255, 0, 0);
     Rgb* green = makeRgb(0, 255, 0);
     Rgb* blue = makeRgb(0, 0, 255);
@@ -49,7 +70,7 @@ int main(int argc, char** argv) {
         // Sphere* sphere3 = makeSphere(&center3, 2.0, blue);
         Sphere* spheres[2] = {sphere1, sphere2};
         char* fileName = calloc(100, sizeof(char));
-        sprintf(fileName, "%s%03d.tga", argv[1], i);
+        sprintf(fileName, "%s%03d.tga", argv[3], i);
         printf("%s\n", fileName);
         FILE* outFile = fopen(fileName, "w+");
         writeHeader(outFile);
