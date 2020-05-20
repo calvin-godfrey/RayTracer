@@ -37,3 +37,9 @@ void normalize(Vec3* vec) {
     vec -> y /= m;
     vec -> z /= m;
 }
+
+void scaleVec3(Vec3* vec, double d) {
+    vec -> x *= d;
+    vec -> y *= d;
+    vec -> z *= d;
+}

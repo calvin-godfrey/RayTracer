@@ -28,5 +28,8 @@ Rgb* hslToRgb(Hsl*);
 Hsl* rgbToHsl(Rgb*);
 void scale(Rgb*, double);
 void printColor(Rgb*);
+Rgb* addRgb(Rgb*, Rgb*);
+int isWhite(Rgb*);
+void multiplyColors(Rgb*, Rgb*);
 
 #endif

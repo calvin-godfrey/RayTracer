@@ -16,5 +16,6 @@ double mag(Vec3*);
 void printVec3(Vec3*);
 void normalize(Vec3*);
 Vec3* add(Vec3*, Vec3*);
+void scaleVec3(Vec3*, double);
 
 #endif
