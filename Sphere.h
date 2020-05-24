@@ -12,11 +12,12 @@ struct _Sphere {
     double reflectivity;
     double refractivity;
     Texture* texture;
+    double rotation;
 };
 
 typedef struct _Sphere Sphere;
 
-Sphere* makeSphere(Vec3*, double, Rgb*, Texture*, double, double);
+Sphere* makeSphere(Vec3*, double, Rgb*, Texture*, double, double, double);
 void freeSphere(Sphere*);
 Vec3* sphereIntersect(Sphere*, Ray*, double*);
 Rgb* getPixelData(Sphere*, Vec3*);

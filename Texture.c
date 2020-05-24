@@ -15,7 +15,6 @@ Texture* makeTexture(char* fileName) {
         printf("Error opening texture file %s\n", fileName);
         return NULL;
     }
-    t -> file = file;
     t -> type = TGA; // TODO: Support multiple file types
     // in TGA, bytes 12-13 are width, 14-15 are height
     fseek(file, widthOffset, SEEK_SET); // SEEK_SET is start of file
@@ -41,11 +40,17 @@ Texture* makeTexture(char* fileName) {
     fread(&orientation, sizeof(char), 1, file);
     t -> flipX = (orientation & (1 << 4)) > 0 ? -1 : 1;
     t -> flipY = (orientation & (1 << 5)) > 0 ? -1 : 1;
+
+    unsigned char* bytes = calloc(width * height * 3, sizeof(char));
+    fseek(file, 18, SEEK_SET);
+    fread(bytes, sizeof(unsigned char), width * height * 3, file);
+    t -> bytes = bytes;
+
     return t;
 }
 
 void freeTexture(Texture* t) {
-    fclose(t -> file);
+    free(t -> bytes);
 }
 
 /**
@@ -61,13 +66,9 @@ Rgb* getPixel(Texture* t, double x, double y) {
     uint16_t xCoord = (uint16_t)(t -> width * x);
     uint16_t yCoord = (uint16_t)(t -> height * y);
     uint32_t offset = yCoord * t -> width + xCoord;
-    fseek(t -> file, (uint32_t)(t -> headerSize) + offset * 3, SEEK_SET); // * 3 because 3 bytes per pixel
-    fread(&blue, sizeof(char), 1, t -> file);
-    fseek(t -> file, (uint32_t)(t -> headerSize) + offset * 3 + 1, SEEK_SET);
-    fread(&green, sizeof(char), 1, t -> file);
-    fseek(t -> file, (uint32_t)(t -> headerSize) + offset * 3 + 2, SEEK_SET);
-    fread(&red, sizeof(char), 1, t -> file);
-
+    blue = t -> bytes[offset * 3];
+    green = t -> bytes[offset * 3 + 1];
+    red = t -> bytes[offset * 3 + 2];
     Rgb* color = makeRgb(red, green, blue);
     return color;
 }

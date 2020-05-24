@@ -15,8 +15,8 @@ uint16_t width;
 uint16_t height;
 double aspectRatio;
 double vFOV;
-Vec3 camera = {-5, 0, 0};
-Vec3 light = {-38, 0, 20};
+Vec3 camera = {-11, 0, 0};
+Vec3 light = {50, 0, 100};
 
 static void writeHeader(FILE* file) {
     // 800x600 image, 24 bits per pixel
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     Rgb* green = makeRgb(0, 255, 0);
     Rgb* blue = makeRgb(0, 0, 255);
     Rgb* gray = makeRgb(200, 200, 200);
-    Texture* t = makeTexture("data/map.tga");
+    // Texture* t = makeTexture("../data/map.tga");
     // int size = 15;
     // Sphere** spheres = malloc(sizeof(Sphere*) * size);
     // for (int i = 0; i < size; i++) {
@@ -64,21 +64,21 @@ int main(int argc, char** argv) {
     // }
     for (int i = 0; i < 360; i++) {
 
-        Vec3 center1 = {10.0 + 9 * cos(i * PI / 180.0), 0.0 + 9 * sin(i * PI / 180.0), -1.0};
-        Vec3 center2 = {10.0, -0.0, -1.0};
-        Vec3 center3 = {10.0, 0.0, -10001.0};
+        Vec3 center1 = {2.8 + 9 * cos(i * PI / 180.0), 0.0 + 9 * sin(i * PI / 180.0), -0.0};
+        Vec3 center2 = {2.8, -0.0, -1.0};
+        Vec3 center3 = {10.0, 0.0, -10001.0 - center2.z};
         // Vec3 center3 = {3.0, -2.4, -4.0};
-        Sphere* sphere1 = makeSphere(&center1, 0.8, red, NULL, 0.0, 1.0);
-        Sphere* sphere2 = makeSphere(&center2, 5.8, green, t, 0.0, 0.0);
-        Sphere* sphere3 = makeSphere(&center3, 10000.0 - 5.8, gray, NULL, 0.0, 0.0);
+        Sphere* sphere1 = makeSphere(&center1, 0.8, red, NULL, 0.0, 0.0, 0.0);
+        Sphere* sphere2 = makeSphere(&center2, 5.8, green, NULL, 1.0, 1.0, -i * PI / 180.0);
+        Sphere* sphere3 = makeSphere(&center3, 10000.0 - sphere2 -> radius, gray, NULL, 0.0, 0.0, 0.0);
         // Sphere* sphere3 = makeSphere(&center3, 2.0, blue);
-        Sphere* spheres[1] = {sphere2};
+        Sphere* spheres[3] = {sphere1, sphere2, sphere3};
         char* fileName = calloc(100, sizeof(char));
         sprintf(fileName, "%s%03d.tga", argv[3], i);
         printf("%s\n", fileName);
         FILE* outFile = fopen(fileName, "w+");
         writeHeader(outFile);
-        raycast(outFile, spheres, 1);
+        raycast(outFile, spheres, 3);
         fclose(outFile);
     }
     // for (int i = 0; i < size; i++) {

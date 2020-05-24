@@ -17,5 +17,9 @@ void printVec3(Vec3*);
 void normalize(Vec3*);
 Vec3* add(Vec3*, Vec3*);
 void scaleVec3(Vec3*, double);
+Vec3* reflectVector(Vec3*, Vec3*);
+Vec3* refractVector(Vec3*, Vec3*, double);
+Vec3* copyScaleVec3(Vec3*, double);
+void copyVec3(Vec3*, Vec3*);
 
 #endif

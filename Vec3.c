@@ -43,3 +43,43 @@ void scaleVec3(Vec3* vec, double d) {
     vec -> y *= d;
     vec -> z *= d;
 }
+
+/**
+ * Reflects the Vector vec across the axis determined by the base vector. Assumes that the
+ * two vectors passed are both unit vectors.
+ */
+Vec3* reflectVector(Vec3* base, Vec3* vec) {
+    // dot(base, vec) * base is the projection of vec onto base, so that
+    // `vec - dot(base, vec) * base` is perpendicular to base. To make it a proper reflection,
+    // we simply want to subract the projection again, giving the formula used here.
+    double projectionFactor = 2 * dot(base, vec);
+    Vec3* baseCopy = copyScaleVec3(base, projectionFactor);
+    Vec3* ans = sub(vec, baseCopy); // vec - 2 * dot(base, vec) * base;
+    free(baseCopy);
+    return ans;
+}
+
+Vec3* refractVector(Vec3* dir, Vec3* normal, double factor) {
+    double cosi = -dot(normal, dir);
+    double sini2 = factor * factor * (1 - cosi * cosi);
+    if (sini2 > 1.0) return NULL;
+    double cost = sqrt(1.0 - sini2);
+    Vec3* scaledDir = copyScaleVec3(dir, factor);
+    Vec3* scaledNormal = copyScaleVec3(normal, factor * cosi - cost);
+    Vec3* ans = add(scaledDir, scaledNormal);
+    free(scaledDir);
+    free(scaledNormal);
+    return ans;
+}
+
+Vec3* copyScaleVec3(Vec3* vec, double d) {
+    Vec3* new = makeVec3(vec -> x, vec -> y, vec -> z);
+    scaleVec3(new, d);
+    return new;
+}
+
+void copyVec3(Vec3* from, Vec3* to) {
+    to -> x = from -> x;
+    to -> y = from -> y;
+    to -> z = from -> z;
+}

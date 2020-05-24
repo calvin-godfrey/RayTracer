@@ -10,7 +10,7 @@
  * that a sphere cannot have both a texture AND color. Texture has higher priority; if it is
  * null, only then is its color used.
  */
-Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivity, double refractivity) {
+Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivity, double refractivity, double rotation) {
     Sphere* sphere = malloc(sizeof(Sphere));
     sphere -> center = center;
     sphere -> radius = r;
@@ -18,6 +18,7 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivi
     sphere -> reflectivity = reflectivity;
     sphere -> refractivity = refractivity;
     sphere -> texture = t;
+    sphere -> rotation = rotation;
     return sphere;
 }
 
@@ -71,13 +72,14 @@ Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
 
 Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     // TODO: Rotation
-    if (sphere -> texture == NULL) return sphere -> color;
+    if (sphere -> texture == NULL) {
+        return makeRgb(sphere -> color -> r, sphere -> color -> g, sphere -> color -> b);
+    }
     Vec3* coordinates = sub(point, sphere -> center);
     double y = (coordinates -> z / sphere -> radius + 1.0) / 2;
-    double angle = atan2(coordinates -> y, coordinates -> x); // in [-pi, pi]
+    double angle = atan2(coordinates -> y, coordinates -> x) + sphere -> rotation; // in [-pi, pi]
     // TODO: Decide where I want 0 to be on the texture
-    double x = (angle + PI) / (2 * PI); // transform [-pi, pi] to [0, 1]
-    x += 0.3;
+    double x = (angle + PI) / (2 * PI) + 2; // transform [-pi, pi] to [0, 1], + 2 ensurse that it's positive
     x = x - (int) x;
     if (x == 1.0) x = 0.0; // edge case, texture only works on [0, 1)
     free(coordinates);

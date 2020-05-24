@@ -5,7 +5,7 @@
 #include "Color.h"
 
 struct _Texture {
-    FILE* file;
+    unsigned char* bytes;
     uint16_t width;
     uint16_t height;
     char* type;

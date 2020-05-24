@@ -9,10 +9,12 @@ Ray* makeRay(Vec3* from, Vec3* to) {
     ray -> from = from;
     ray -> to = to;
     ray -> dir = newTo;
+    ray -> pointDir = 0;
     return ray;
 }
 
 void freeRay(Ray* ray) {
+    if (ray -> pointDir == 1) free(ray -> to);
     free(ray -> dir);
 }
 
@@ -38,4 +40,11 @@ Vec3* getPoint(Ray* ray, double time) {
 int onLine(Ray* ray, double d) {
     double toD = (ray -> to -> x - ray -> from -> x) / (ray -> dir -> x);
     return toD >= d ? 1 : 0;
+}
+
+Ray* makeRayPointDir(Vec3* point, Vec3* dir) {
+    Vec3* to = add(point, dir);
+    Ray* ray = makeRay(point, to);
+    ray -> pointDir = 1;
+    return ray;
 }
