@@ -10,7 +10,7 @@
  * that a sphere cannot have both a texture AND color. Texture has higher priority; if it is
  * null, only then is its color used.
  */
-Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivity, double refractivity, double rotation) {
+Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivity, double refractivity, double rotation, double refractionIndex) {
     Sphere* sphere = malloc(sizeof(Sphere));
     sphere -> center = center;
     sphere -> radius = r;
@@ -19,6 +19,7 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivi
     sphere -> refractivity = refractivity;
     sphere -> texture = t;
     sphere -> rotation = rotation;
+    sphere -> refractionIndex = refractionIndex;
     return sphere;
 }
 

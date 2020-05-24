@@ -89,7 +89,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
 
             if (hit -> refractivity > 0) {
                 free(refractionColor);
-                double d = 1.1;
+                double d = hit -> refractionIndex;
                 double index = inside ? d : 1/d; // TODO: adjust
                 Vec3* refrDir = refractVector(ray -> dir, normalHit, index);
                 if (refrDir == NULL) {
@@ -107,7 +107,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
                 }
             }
 
-            scale(reflectionColor, fresnel);
+            scale(reflectionColor, fresnel * hit -> reflectivity);
             scale(refractionColor, (1 - fresnel) * hit -> refractivity);
             
             multiplyColors(refractionColor, baseColor);
