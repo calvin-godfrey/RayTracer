@@ -10,13 +10,16 @@
 #include "Vec3.h"
 #include "Consts.h"
 #include "Texture.h"
+#include "Quaternion.h"
 
 uint16_t width;
 uint16_t height;
 double aspectRatio;
 double vFOV;
-Vec3 camera = {-11, 0, 0};
-Vec3 light = {-50, 0, 100};
+Vec3 cameraLocation = {-11, 0, 0};
+Vec3 cameraDirection = {1, 0, 0.0};
+double cameraOrientation = 0; // in radians
+Vec3 light = {-50, -100, 100};
 
 static void writeHeader(FILE* file) {
     // 800x600 image, 24 bits per pixel
@@ -55,17 +58,23 @@ int main(int argc, char** argv) {
     Rgb* gray = makeRgb(200, 200, 201);
     Texture* t = makeTexture("../data/baseball.tga");
 
-    for (int i = 298; i < 360; i++) {
+    for (int i = 0; i < 360; i++) {
 
-        // Vec3 center1 = {2.8 + 9 * cos(i * PI / 180.0), 0.0 + 9 * sin(i * PI / 180.0), -0.0};
+        cameraLocation.x = 2.8 - 20 * cos(i * PI / 180);
+        cameraLocation.y = 0 + 20 * sin(i * PI / 180);
+        cameraLocation.z =  4 * sin(i * PI / 180 * 6);
+
+        cameraDirection.x = cos(i * PI / 180);
+        cameraDirection.y = -sin(i * PI / 180);
+        cameraDirection.z = -0.4 * sin(i * PI / 180 * 6);
+
+        Vec3 center1 = {2.8 + 9 * cos(i * PI / 180.0), 0.0 + 9 * sin(i * PI / 180.0), -0.0};
         Vec3 center2 = {2.8, -0.0, -1.0};
-        Vec3 center3 = {10.0, 0.0, -10011.0 + center2.z};
-        // Vec3 center3 = {3.0, -2.4, -4.0};
-        // Sphere* sphere1 = makeSphere        (&center1, 0.8,                         red,   NULL, 0.0, 0.0, 1.0);
+        // Vec3 center3 = {10.0, 0.0, -10011.0 + center2.z};
+        Sphere* sphere1 = makeSphere        (&center1, 0.8,                         red,   NULL, 1.0, 0.0, 0.0);
         Sphere* sphere2 = makeSphereRotation(&center2, 5.8,                        green,  t, 1.0, 1.0, 1.13, -i, 2 * i, 360 * cos(i * PI / 180));
-        Sphere* sphere3 = makeSphere        (&center3, 9999.0 - sphere2 -> radius, gray,  NULL, 0.0, 0.0, 1.0);
-        // Sphere* sphere3 = makeSphere(&center3, 2.0, blue);
-        Sphere* spheres[2] = {sphere2, sphere3};
+        // Sphere* sphere3 = makeSphere        (&center3, 9999.0 - sphere2 -> radius, gray,  NULL, 0.0, 0.0, 1.0);
+        Sphere* spheres[2] = {sphere1, sphere2};
         char* fileName = calloc(100, sizeof(char));
         sprintf(fileName, "%s%03d.tga", argv[3], i);
         printf("%s\n", fileName);

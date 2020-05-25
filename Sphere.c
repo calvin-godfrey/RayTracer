@@ -21,6 +21,7 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivi
     sphere -> refractionIndex = refractionIndex;
     Angles* temp = makeAngles(0, 0, 0);
     sphere -> rotation = anglesToQuaternion(temp);
+    sphere -> next = NULL;
     free(temp);
     return sphere;
 }
@@ -36,6 +37,7 @@ Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, double re
     sphere -> refractionIndex = index;
     Angles* temp = makeAngles(rx * PI / 180, ry * PI / 180, rz * PI / 180);
     sphere -> rotation = anglesToQuaternion(temp);
+    sphere -> next = NULL;
     free(temp);
     return sphere;
 }
@@ -105,4 +107,9 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     free(coordinates);
     free(rotated);
     return getPixel(sphere -> texture, x, y);
+}
+
+Sphere* insertSphere(Sphere* head, Sphere* new) {
+    new -> next = head;
+    return new;
 }

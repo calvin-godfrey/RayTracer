@@ -12,31 +12,49 @@ extern uint16_t width;
 extern uint16_t height;
 extern double aspectRatio;
 extern double vFOV;
-extern Vec3 camera;
+extern Vec3 cameraLocation;
+extern Vec3 cameraDirection;
+extern double cameraOrientation;
 extern Vec3 light;
 
 static double toRads(double deg);
 static void drawRgb(Rgb*, FILE*);
-static double calcCoord(double, uint16_t, uint16_t);
+static int16_t calcCoord(uint16_t, uint16_t);
 static Rgb* trace(Ray*, Sphere**, int, int);
 
 void raycast(FILE* file, Sphere** spheres, int sphereLength) {
+    normalize(&cameraDirection);
+
+    Vec3** temp = getOrthogonalVectors(&cameraDirection);
+    Vec3* v1 = temp[0];
+    Vec3* v2 = temp[1];
+
+    Vec3* r1 = rotate(v1, &cameraDirection, cameraOrientation);
+    Vec3* r2 = rotate(v2, &cameraDirection, cameraOrientation);
+
     double zMax = 1 / cos(toRads(vFOV) / 2.0);
     double yMax = 1 / cos(toRads(hFOV) / 2.0) * (aspectRatio + 1) / 2.0; // fixes stretching
 
+    scaleVec3(r1, zMax * 2 / height);
+    scaleVec3(r2, yMax * 2 / width);
+
     for (uint16_t i = 0; i < height; i++) {
         for (uint16_t j = 0; j < width; j++) {
-            double zCoord = calcCoord(zMax, height, i);
-            double yCoord = calcCoord(yMax, width, j);
-            Vec3* coord = makeVec3(1 + camera.x, yCoord, zCoord);
-            Ray* ray = makeRay(&camera, coord);
+            double scale1 = calcCoord(height, i);
+            double scale2 = calcCoord(width, j);
+            Vec3* scaledV1 = copyScaleVec3(r1, scale1);
+            Vec3* scaledV2 = copyScaleVec3(r2, scale2);
+            Vec3* dir = add3(scaledV1, scaledV2, &cameraDirection);
+            Ray* ray = makeRayPointDir(&cameraLocation, dir);
             Rgb* color = trace(ray, spheres, sphereLength, 0);
             if (color == NULL) color = makeRgb(135, 206, 235); // sky color
             drawRgb(color, file);
             free(color);
-            free(coord);
             freeRay(ray);
             free(ray);
+            free(dir);
+            free(scaledV1);
+            free(scaledV2);
         }
     }
 }
@@ -165,8 +183,7 @@ static void drawRgb(Rgb* rgb, FILE* file) {
     fputc(rgb -> r, file);
 }
 
-static double calcCoord(double max, uint16_t coord, uint16_t value) {
-    int16_t offset = (coord / 2 - value);
-    double prop = offset / (coord / 2.0);
-    return max * prop;
+static int16_t calcCoord(uint16_t coord, uint16_t value) {
+    int16_t offset = (coord / 2 - value); // offset from middle in pixels
+    return offset;
 }

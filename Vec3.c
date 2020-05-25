@@ -89,3 +89,44 @@ Vec3* cross(Vec3* a, Vec3* b) {
                     a -> z * b -> x - a -> x * b -> z,
                     a -> x * b -> y - a -> y * b -> x);
 }
+
+Vec3** getOrthogonalVectors(Vec3* vec) {
+    Vec3* temp = makeVec3(0, 0, 0);
+    copyVec3(vec, temp);
+    temp -> z += 1; // any non-parallel vector
+
+    Vec3* v1 = cross(vec, temp);
+    Vec3* v2 = cross(vec, v1);
+    scaleVec3(v2, -1); // just to make it work
+
+    normalize(v1);
+    normalize(v2);
+
+    Vec3** ans = malloc(sizeof(Vec3*) * 2);
+    ans[1] = v1;
+    ans[0] = v2;
+    free(temp);
+    return ans;
+}
+
+Vec3* rotate(Vec3* vec, Vec3* axis, double angle) {
+    double c = cos(angle);
+    double s = sin(-angle);
+    double d = dot(axis, vec);
+    Vec3* crossed = cross(axis, vec);
+    scaleVec3(crossed, s);
+    Vec3* scaled = copyScaleVec3(vec, c);
+    Vec3* last = copyScaleVec3(axis, d * (1 - c));
+    Vec3* ans = add3(crossed, scaled, last);
+    free(crossed);
+    free(scaled);
+    free(last);
+    return ans;
+}
+
+Vec3* add3(Vec3* a, Vec3* b, Vec3* c) {
+    Vec3* temp = add(a, b);
+    Vec3* ans = add(temp, c);
+    free(temp);
+    return ans;
+}

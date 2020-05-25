@@ -55,3 +55,5 @@ REFRACTIVITY 1
 INDEX 1.4
 ROTATION 180 180 90
 ```
+
+The lines describing a sphere must end with a line containing `DONE` by itself.

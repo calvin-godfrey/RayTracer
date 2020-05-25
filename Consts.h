@@ -7,6 +7,7 @@
 #define MAX_DEPTH 4
 #define SMALL 0.0001
 #define TGA "tga"
+#define LINE_LENGTH 100
 
 
 #endif

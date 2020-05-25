@@ -15,6 +15,7 @@ struct _Sphere {
     Texture* texture;
     Quaternion* rotation;
     double refractionIndex;
+    struct _Sphere* next; // linked list
 };
 
 typedef struct _Sphere Sphere;
@@ -24,6 +25,7 @@ Sphere* makeSphereRotation(Vec3*, double, Rgb*, Texture*, double, double, double
 void freeSphere(Sphere*);
 Vec3* sphereIntersect(Sphere*, Ray*, double*);
 Rgb* getPixelData(Sphere*, Vec3*);
+Sphere* insertSphere(Sphere*, Sphere*);
 
 
 #endif
