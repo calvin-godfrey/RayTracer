@@ -77,7 +77,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             Rgb* refractionColor = makeRgb(0, 0, 0);
             free(restColor);
             double ratio = -1 * dot(normalHit, ray -> dir); // both normal vectors
-            double fresnel = pow(1 - ratio, 3); // TODO: make this better?
+            double fresnel = 0.2 + 0.8 * pow(1 - ratio, 2); // TODO: make this better?
             Vec3* reflectDir = reflectVector(normalHit, ray -> dir); // reflect ray across the normal vector
             Vec3* scaledNormal = copyScaleVec3(normalHit, SMALL);
             // We want to move the origin of the ray slightly in the direction of the normal vector
@@ -119,6 +119,10 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             free(scaledNormal);
             free(reflectionColor);
             free(refractionColor);
+            free(normalHit);
+            free(baseColor);
+            free(hitLocation);
+            return restColor;
         }
 
         Ray* lightRay = makeRay(&light, hitLocation);

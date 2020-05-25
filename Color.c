@@ -121,7 +121,7 @@ int isWhite(Rgb* c) {
 }
 
 void multiplyColors(Rgb* a, Rgb* b) {
-    a -> r *= b -> r;
-    a -> b *= b -> b;
-    a -> g *= b -> g;
+    a -> r = (unsigned char) (a -> r * (b -> r / 255.0));
+    a -> b = (unsigned char) (a -> b * (b -> b / 255.0));
+    a -> g = (unsigned char) (a -> g * (b -> g / 255.0));
 }

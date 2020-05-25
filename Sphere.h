@@ -4,6 +4,7 @@
 #include "Vec3.h"
 #include "Ray.h"
 #include "Texture.h"
+#include "Quaternion.h"
 
 struct _Sphere {
     Vec3* center;
@@ -12,13 +13,14 @@ struct _Sphere {
     double reflectivity;
     double refractivity;
     Texture* texture;
-    double rotation;
+    Quaternion* rotation;
     double refractionIndex;
 };
 
 typedef struct _Sphere Sphere;
 
-Sphere* makeSphere(Vec3*, double, Rgb*, Texture*, double, double, double, double);
+Sphere* makeSphere(Vec3*, double, Rgb*, Texture*, double, double, double);
+Sphere* makeSphereRotation(Vec3*, double, Rgb*, Texture*, double, double, double, double, double, double);
 void freeSphere(Sphere*);
 Vec3* sphereIntersect(Sphere*, Ray*, double*);
 Rgb* getPixelData(Sphere*, Vec3*);
