@@ -57,3 +57,23 @@ ROTATION 180 180 90
 ```
 
 The lines describing a sphere must end with a line containing `DONE` by itself.
+
+## Multithreading
+
+Without any multithreading, running the program at 640x480 resolution on three spheres, one opaque, one reflective and refractive, and one reflective with a texture, gave the following output:
+
+```
+real    6m15.841s
+user    6m11.104s
+sys     0m3.901s
+```
+
+With a thread processing each row of pixels, that turned into
+
+```
+real    1m37.366s
+user    5m37.548s
+sys     0m15.984s
+```
+
+which is almost 4 times faster.

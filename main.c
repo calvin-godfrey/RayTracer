@@ -56,31 +56,31 @@ int main(int argc, char** argv) {
     Rgb* green = makeRgb(0, 200, 0);
     Rgb* blue = makeRgb(0, 0, 255);
     Rgb* gray = makeRgb(200, 200, 201);
-    Texture* t = makeTexture("../data/baseball.tga");
+    Texture* t = makeTexture("../data/map.tga");
 
     for (int i = 0; i < 360; i++) {
 
-        cameraLocation.x = 2.8 - 20 * cos(i * PI / 180);
-        cameraLocation.y = 0 + 20 * sin(i * PI / 180);
-        cameraLocation.z =  4 * sin(i * PI / 180 * 6);
+        // cameraLocation.x = 2.8 - 20 * cos(i * PI / 180);
+        // cameraLocation.y = 0 + 20 * sin(i * PI / 180);
+        // cameraLocation.z =  4 * sin(i * PI / 180 * 6);
 
-        cameraDirection.x = cos(i * PI / 180);
-        cameraDirection.y = -sin(i * PI / 180);
-        cameraDirection.z = -0.4 * sin(i * PI / 180 * 6);
+        // cameraDirection.x = cos(i * PI / 180);
+        // cameraDirection.y = -sin(i * PI / 180);
+        // cameraDirection.z = -0.4 * sin(i * PI / 180 * 6);
 
         Vec3 center1 = {2.8 + 9 * cos(i * PI / 180.0), 0.0 + 9 * sin(i * PI / 180.0), -0.0};
         Vec3 center2 = {2.8, -0.0, -1.0};
-        // Vec3 center3 = {10.0, 0.0, -10011.0 + center2.z};
-        Sphere* sphere1 = makeSphere        (&center1, 0.8,                         red,   NULL, 1.0, 0.0, 0.0);
-        Sphere* sphere2 = makeSphereRotation(&center2, 5.8,                        green,  t, 1.0, 1.0, 1.13, -i, 2 * i, 360 * cos(i * PI / 180));
-        // Sphere* sphere3 = makeSphere        (&center3, 9999.0 - sphere2 -> radius, gray,  NULL, 0.0, 0.0, 1.0);
-        Sphere* spheres[2] = {sphere1, sphere2};
+        Vec3 center3 = {10.0, 0.0, -10011.0 + center2.z};
+        Sphere* sphere1 = makeSphere(&center1, 0.8,                         red,   t, 1.0, 0.0, 0.0);
+        Sphere* sphere2 = makeSphere(&center2, 5.8,                        green,  NULL, 1.0, 1.0, 1.13);
+        Sphere* sphere3 = makeSphere(&center3, 9999.0 - sphere2 -> radius, gray,  NULL, 0.0, 0.0, 1.0);
+        Sphere* spheres[3] = {sphere1, sphere2, sphere3};
         char* fileName = calloc(100, sizeof(char));
         sprintf(fileName, "%s%03d.tga", argv[3], i);
         printf("%s\n", fileName);
         FILE* outFile = fopen(fileName, "w+");
         writeHeader(outFile);
-        raycast(outFile, spheres, 2);
+        raycast(outFile, spheres, 3);
         fclose(outFile);
     }
     // for (int i = 0; i < size; i++) {
@@ -91,4 +91,6 @@ int main(int argc, char** argv) {
     free(red);
     free(green);
     free(blue);
+    freeTexture(t);
+    free(t);
 }
