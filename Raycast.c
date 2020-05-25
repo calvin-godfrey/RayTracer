@@ -2,11 +2,10 @@
 #include <math.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "Raycast.h"
-#include "Vec3.h"
 #include "Ray.h"
 #include "Consts.h"
-#include "Color.h"
 
 extern uint16_t width;
 extern uint16_t height;
@@ -21,6 +20,9 @@ static double toRads(double deg);
 static void drawRgb(Rgb*, FILE*);
 static int16_t calcCoord(uint16_t, uint16_t);
 static Rgb* trace(Ray*, Sphere**, int, int);
+static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Sphere**, int, Rgb**, uint16_t);
+static void* threadCall(void*);
+static void writePixels(Rgb**, FILE*);
 
 void raycast(FILE* file, Sphere** spheres, int sphereLength) {
     normalize(&cameraDirection);
@@ -38,25 +40,56 @@ void raycast(FILE* file, Sphere** spheres, int sphereLength) {
     scaleVec3(r1, zMax * 2 / height);
     scaleVec3(r2, yMax * 2 / width);
 
+    Rgb** pixels = calloc(height * width, sizeof(Rgb*));
+
+    pthread_t* ids = calloc(height, sizeof(pthread_t));
+    ThreadArgs** fullArgs = calloc(height, sizeof(ThreadArgs*));
+
     for (uint16_t i = 0; i < height; i++) {
-        for (uint16_t j = 0; j < width; j++) {
-            double scale1 = calcCoord(height, i);
-            double scale2 = calcCoord(width, j);
-            Vec3* scaledV1 = copyScaleVec3(r1, scale1);
-            Vec3* scaledV2 = copyScaleVec3(r2, scale2);
-            Vec3* dir = add3(scaledV1, scaledV2, &cameraDirection);
-            Ray* ray = makeRayPointDir(&cameraLocation, dir);
-            Rgb* color = trace(ray, spheres, sphereLength, 0);
-            if (color == NULL) color = makeRgb(135, 206, 235); // sky color
-            drawRgb(color, file);
-            free(color);
-            freeRay(ray);
-            free(ray);
-            free(dir);
-            free(scaledV1);
-            free(scaledV2);
+        ThreadArgs* args = makeThreadArgs(r1, r2, spheres, sphereLength, pixels, i);
+        fullArgs[i] = args;
+
+        if (pthread_create(&ids[i], NULL, threadCall, (void*) args) != 0) {
+            printf("Something went wrong: %"PRIu16"\n", i);
+            return;
         }
     }
+
+    for (uint16_t i = 0; i < height; i++) {
+        pthread_join(ids[i], NULL); // wait for everything to finish
+    }
+    writePixels(pixels, file);
+
+    for (int i = 0; i < width * height; i++) free(pixels[i]);
+    free(pixels);
+    free(ids);
+
+    for (int i = 0; i < height; i++) free(fullArgs[i]);
+    free(fullArgs);
+}
+
+static void* threadCall(void* args) {
+    ThreadArgs* arguments = (ThreadArgs*) args;
+    uint16_t i = arguments -> row;
+    for (uint16_t j = 0; j < width; j++) {
+        // printf("DOING %"PRIu16", %"PRIu16"\n", i, j);
+        double scale1 = calcCoord(height, i);
+        double scale2 = calcCoord(width, j);
+        Vec3* scaledV1 = copyScaleVec3(arguments -> step1, scale1);
+        Vec3* scaledV2 = copyScaleVec3(arguments -> step2, scale2);
+        Vec3* dir = add3(scaledV1, scaledV2, &cameraDirection);
+        Ray* ray = makeRayPointDir(&cameraLocation, dir);
+        Rgb* color = trace(ray, arguments -> spheres, arguments -> sphereLength, 0);
+        if (color == NULL) color = makeRgb(135, 206, 235); // sky color
+        int index = i * width + j;
+        arguments -> pixels[index] = color;
+        free(scaledV1);
+        free(scaledV2);
+        free(dir);
+        freeRay(ray);
+        free(ray);
+    }
+    return NULL;
 }
 
 static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
@@ -186,4 +219,22 @@ static void drawRgb(Rgb* rgb, FILE* file) {
 static int16_t calcCoord(uint16_t coord, uint16_t value) {
     int16_t offset = (coord / 2 - value); // offset from middle in pixels
     return offset;
+}
+
+static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere** spheres, int sphereLength, Rgb** pixels, uint16_t row) {
+    ThreadArgs* args = malloc(sizeof(ThreadArgs));
+    args -> step1 = r1;
+    args -> step2 = r2;
+    args -> spheres = spheres;
+    args -> sphereLength = sphereLength;
+    args -> pixels = pixels;
+    args -> row = row;
+    return args;
+}
+
+static void writePixels(Rgb** pixels, FILE* fp) {
+    for (int i = 0; i < width * height; i++) {
+        Rgb* pixel = pixels[i];
+        drawRgb(pixel, fp);
+    }
 }
