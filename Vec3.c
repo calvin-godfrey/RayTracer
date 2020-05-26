@@ -8,6 +8,7 @@ Vec3* makeVec3(double x, double y, double z) {
     vec -> x = x;
     vec -> y = y;
     vec -> z = z;
+    vec -> mag2 = x * x + y * y + z * z;
     return vec;
 }
 
@@ -23,25 +24,23 @@ Vec3* add(Vec3* a, Vec3* b) {
     return makeVec3(a -> x + b -> x, a -> y + b -> y, a -> z + b -> z);
 }
 
-double mag(Vec3* a) {
-    return a -> x * a -> x + a -> y * a -> y + a -> z * a -> z;
-}
-
 void printVec3(Vec3* a) {
     printf("(%f, %f, %f)", a -> x, a -> y, a -> z);
 }
 
 void normalize(Vec3* vec) {
-    double m = sqrt(mag(vec));
+    double m = sqrt(vec -> mag2);
     vec -> x /= m;
     vec -> y /= m;
     vec -> z /= m;
+    vec -> mag2 = 1.0;
 }
 
 void scaleVec3(Vec3* vec, double d) {
     vec -> x *= d;
     vec -> y *= d;
     vec -> z *= d;
+    vec -> mag2 *= d * d;
 }
 
 /**
@@ -80,6 +79,7 @@ void copyVec3(Vec3* from, Vec3* to) {
     to -> x = from -> x;
     to -> y = from -> y;
     to -> z = from -> z;
+    to -> mag2 = from -> mag2;
 }
 
 Vec3* cross(Vec3* a, Vec3* b) {
@@ -133,16 +133,19 @@ void incVec3(Vec3* a, Vec3* b) {
     a -> x += b -> x;
     a -> y += b -> y;
     a -> z += b -> z;
+    a -> mag2 = (a -> x * a -> x + a -> y * a -> y + a -> z * a -> z);
 }
 
 void setVec3(Vec3* vec, double a, double b, double c) {
     vec -> x = a;
     vec -> y = b;
     vec -> z = c;
+    vec -> mag2 = a * a + b * b + c * c;
 }
 
 void setAddVec3(Vec3* a, Vec3* b, Vec3* c) {
     a -> x = b -> x + c -> x;
     a -> y = b -> y + c -> y;
     a -> z = b -> z + c -> z;
+    a -> mag2 = (a -> x * a -> x + a -> y * a -> y + a -> z * a -> z);
 }

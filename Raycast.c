@@ -25,7 +25,6 @@ static void* threadCall(void*);
 void raycast(FILE* file, Sphere** spheres, int sphereLength) {
     // The camera direction uniquely defines a plane that will represent the
     // viewpoint of the renderer.
-    normalize(&cameraDirection);
 
     // In order to find a point on the above plane to draw a ray through, we
     // need two vectors in order to make an orthonormal basis of the plane
@@ -100,7 +99,9 @@ static void* threadCall(void* args) {
     Vec3* temp = add(scaledV1, &cameraDirection);
     int index = 3 * i * width;
     Vec3* dir = makeVec3(0, 0, 0);
-    Ray* ray = makeRay(&cameraLocation, &cameraLocation);
+    Ray* ray = malloc(sizeof(Ray));
+    ray -> from = &cameraLocation;
+    ray -> pointDir = 0;
     
     for (uint16_t j = 0; j < width; j++) {
         incVec3(scaledV2, step);
@@ -170,15 +171,15 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             double ratio = -dotProd; // both normal vectors
             double fresnel = 0.2 + 0.8 * pow(1 - ratio, 2); // TODO: make this better?
             Vec3* reflectDir = reflectVector(normalHit, ray -> dir, -ratio); // reflect ray across the normal vector
-            Vec3* scaledNormal = copyScaleVec3(normalHit, SMALL);
             // We want to move the origin of the ray slightly in the direction of the normal vector
             // So that recursive calls to trace don't continually hit the same point over and over again
-            Vec3* rayOrigin = add(hitLocation, scaledNormal);
-            Ray* reflectRay = makeRayPointDir(rayOrigin, reflectDir);
-            Rgb* reflectionColor = trace(reflectRay, spheres, sphereLength, depth + 1);
+            Vec3* rayOrigin = makeVec3(hitLocation -> x + normalHit -> x * SMALL, hitLocation -> y + normalHit -> y * SMALL, hitLocation -> z + normalHit -> z * SMALL);
+            Ray* newRay = makeRayPointDir(rayOrigin, reflectDir);
+            Rgb* reflectionColor = trace(newRay, spheres, sphereLength, depth + 1);
             if (reflectionColor == NULL) reflectionColor = makeRgb(255, 255, 255);
 
             if (hit -> refractivity > 0) {
+                free(newRay -> dir);
                 free(refractionColor);
                 double d = hit -> refractionIndex;
                 double index = inside ? d : 1/d; // TODO: adjust
@@ -187,14 +188,11 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
                     refractionColor = makeRgb(0, 0, 0);
                 } else {
                     normalize(refrDir);
-                    Vec3* origin = makeVec3(hitLocation -> x - normalHit -> x * SMALL, hitLocation -> y - normalHit -> y * SMALL, hitLocation -> z - normalHit -> z * SMALL);
-                    Ray* refrRay = makeRayPointDir(origin, refrDir);
-                    refractionColor = trace(refrRay, spheres, sphereLength, depth + 1);
+                    setVec3(newRay -> from, hitLocation -> x - normalHit -> x * SMALL, hitLocation -> y - normalHit -> y * SMALL, hitLocation -> z - normalHit -> z * SMALL);
+                    newRay -> dir = refrDir;
+                    setAddVec3(newRay -> to, newRay -> from, refrDir);
+                    refractionColor = trace(newRay, spheres, sphereLength, depth + 1);
                     if (refractionColor == NULL) refractionColor = makeRgb(255, 255, 255);
-                    freeRay(refrRay);
-                    free(refrRay);
-                    free(refrDir);
-                    free(origin);
                 }
             }
 
@@ -202,18 +200,16 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             scale(refractionColor, (1 - fresnel) * hit -> refractivity);
             
             multiplyColors(refractionColor, baseColor);
-            restColor = addRgb(reflectionColor, refractionColor);
+            incColor(reflectionColor, refractionColor);
             free(reflectDir);
             free(rayOrigin);
-            freeRay(reflectRay);
-            free(reflectRay);
-            free(scaledNormal);
-            free(reflectionColor);
+            freeRay(newRay);
+            free(newRay);
             free(refractionColor);
             free(normalHit);
             free(baseColor);
             free(hitLocation);
-            return restColor;
+            return reflectionColor;
         }
 
         Ray* lightRay = makeRay(&light, hitLocation);

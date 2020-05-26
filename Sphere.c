@@ -50,7 +50,7 @@ void freeSphere(Sphere* sphere) {
 Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
     Vec3* L = sub(sphere -> center, ray -> from);
     double tca = dot(L, ray -> dir);
-    double d2 = dot(L, L) - tca * tca;
+    double d2 = L -> mag2 - tca * tca;
     double r2 = sphere -> radius * sphere -> radius;
     if (d2 > r2) { // no intersect
         free(L);
