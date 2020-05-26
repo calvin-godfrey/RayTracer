@@ -51,34 +51,20 @@ Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
     Vec3* L = sub(sphere -> center, ray -> from);
     double tca = dot(L, ray -> dir);
     double d2 = dot(L, L) - tca * tca;
-    if (d2 > sphere -> radius * sphere -> radius) { // no intersect
+    double r2 = sphere -> radius * sphere -> radius;
+    if (d2 > r2) { // no intersect
         free(L);
         return NULL;
     } else {
-        double thc = sqrt(sphere -> radius * sphere -> radius - d2);
+        double thc = sqrt(r2 - d2);
         double x0 = tca - thc;
         double x1 = tca + thc;
-        double ans;
-        if (x0 < x1) {
-            if (x0 < 0) {
-                if (x1 < 0) {
-                    free(L);
-                    return NULL;
-                }
-                ans = x1;
-            } else {
-                ans = x0;
-            }
-        } else {
-            if (x1 < 0) {
-                if (x0 < 0) {
-                    free(L);
-                    return NULL;
-                }
-                ans = x0;
-            } else {
-                ans = x1;
-            }
+        double min = fmin(x0, x1);
+        double max = fmax(x0, x1);
+        double ans = min > 0 ? min : max;
+        if (ans < 0) {
+            free(L);
+            return NULL;
         }
         if (ans < *minDistance) *minDistance = ans;
         Vec3* point = getPoint(ray, ans);

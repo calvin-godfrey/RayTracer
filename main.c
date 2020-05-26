@@ -63,7 +63,6 @@ int main(int argc, char** argv) {
         // cameraLocation.x = 2.8 - 20 * cos(i * PI / 180);
         // cameraLocation.y = 0 + 20 * sin(i * PI / 180);
         // cameraLocation.z =  4 * sin(i * PI / 180 * 6);
-
         // cameraDirection.x = cos(i * PI / 180);
         // cameraDirection.y = -sin(i * PI / 180);
         // cameraDirection.z = -0.4 * sin(i * PI / 180 * 6);

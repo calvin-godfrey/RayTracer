@@ -18,11 +18,14 @@ void normalize(Vec3*);
 Vec3* add(Vec3*, Vec3*);
 Vec3* add3(Vec3*, Vec3*, Vec3*);
 void scaleVec3(Vec3*, double);
-Vec3* reflectVector(Vec3*, Vec3*);
-Vec3* refractVector(Vec3*, Vec3*, double);
+Vec3* reflectVector(Vec3*, Vec3*, double);
+Vec3* refractVector(Vec3*, Vec3*, double, double);
 Vec3* copyScaleVec3(Vec3*, double);
 void copyVec3(Vec3*, Vec3*);
 Vec3* cross(Vec3*, Vec3*);
 Vec3** getOrthogonalVectors(Vec3*);
 Vec3* rotate(Vec3*, Vec3*, double);
+void incVec3(Vec3*, Vec3*);
+void setVec3(Vec3*, double, double, double);
+void setAddVec3(Vec3*, Vec3*, Vec3*);
 #endif

@@ -73,14 +73,12 @@ Vec3* multiply(Quaternion* q, Vec3* vec) {
     Vec3* t = cross(copy, vec);
     Vec3* scaleT = copyScaleVec3(t, q -> w);
     Vec3* c = cross(q -> vec, t);
-    Vec3* comb = add(scaleT, c);
-    Vec3* ans = add(vec, comb);
+    incVec3(scaleT, c);
+    incVec3(scaleT, vec);
     free(copy);
     free(t);
-    free(scaleT);
     free(c);
-    free(comb);
-    return ans;
+    return scaleT;
 }
 
 Quaternion* copyScaleQ(Quaternion* q, double d) {

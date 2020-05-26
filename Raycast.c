@@ -17,50 +17,67 @@ extern double cameraOrientation;
 extern Vec3 light;
 
 static double toRads(double deg);
-static void drawRgb(Rgb*, FILE*);
 static int16_t calcCoord(uint16_t, uint16_t);
 static Rgb* trace(Ray*, Sphere**, int, int);
-static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Sphere**, int, Rgb**, uint16_t);
+static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Sphere**, int, unsigned char*, uint16_t);
 static void* threadCall(void*);
-static void writePixels(Rgb**, FILE*);
 
 void raycast(FILE* file, Sphere** spheres, int sphereLength) {
+    // The camera direction uniquely defines a plane that will represent the
+    // viewpoint of the renderer.
     normalize(&cameraDirection);
 
+    // In order to find a point on the above plane to draw a ray through, we
+    // need two vectors in order to make an orthonormal basis of the plane
     Vec3** temp = getOrthogonalVectors(&cameraDirection);
     Vec3* v1 = temp[0];
     Vec3* v2 = temp[1];
 
+    // We then rotate these two basis vectors around the cameraDirection to
+    // account for the orientation of the camera
     Vec3* r1 = rotate(v1, &cameraDirection, cameraOrientation);
     Vec3* r2 = rotate(v2, &cameraDirection, cameraOrientation);
 
+    // Assuming that the plane resides a distance of one from cameraLocation, these
+    // two variables represent how far in each of the two perpendicular directions
+    // (v1 and v2) you can go. In other words, they describe the deviation from the
+    // "middle" of the plane in the four corners.
     double zMax = 1 / cos(toRads(vFOV) / 2.0);
     double yMax = 1 / cos(toRads(hFOV) / 2.0) * (aspectRatio + 1) / 2.0; // fixes stretching
 
+    // This compresses the two unit vectors so that moving one pixel in each direction
+    // means adding another copy of r1 or r2 to find the endpoint.
     scaleVec3(r1, zMax * 2 / height);
     scaleVec3(r2, yMax * 2 / width);
 
-    Rgb** pixels = calloc(height * width, sizeof(Rgb*));
+    // This is where the pixel data will eventually be stored. It's faster to store
+    // the raw bytes then do a single fwrite call at the end
+    unsigned char* pixels = calloc(height * width * 3, sizeof(unsigned char));
 
+    // We want to make a thread for each row of the picture to speed up processing time.
+    // The fullArgs array is because pthread only allows a single void* parameter, so
+    // convention is to make a struct containing the actual parameters
     pthread_t* ids = calloc(height, sizeof(pthread_t));
     ThreadArgs** fullArgs = calloc(height, sizeof(ThreadArgs*));
 
     for (uint16_t i = 0; i < height; i++) {
+        // The arguments are the two basis vectors, sphere data, pixel array, and row number
         ThreadArgs* args = makeThreadArgs(r1, r2, spheres, sphereLength, pixels, i);
         fullArgs[i] = args;
 
+        // create the thread
         if (pthread_create(&ids[i], NULL, threadCall, (void*) args) != 0) {
             printf("Something went wrong: %"PRIu16"\n", i);
             return;
         }
     }
 
+    // make sure that all of the threads finish execution before writing pixel data to file
     for (uint16_t i = 0; i < height; i++) {
-        pthread_join(ids[i], NULL); // wait for everything to finish
+        pthread_join(ids[i], NULL);
     }
-    writePixels(pixels, file);
 
-    for (int i = 0; i < width * height; i++) free(pixels[i]);
+    fwrite(pixels, sizeof(unsigned char), 3 * width * height, file);
     free(pixels);
     free(ids);
 
@@ -71,24 +88,42 @@ void raycast(FILE* file, Sphere** spheres, int sphereLength) {
 static void* threadCall(void* args) {
     ThreadArgs* arguments = (ThreadArgs*) args;
     uint16_t i = arguments -> row;
+
+    // we want to do as much computation as possible outside the loop
+    double scale1 = calcCoord(height, i);
+    Vec3* scaledV1 = copyScaleVec3(arguments -> step1, scale1);
+    // Because we transformed step1 and step2 into "pixel-space", so to speak,
+    // for V2 (which increases with j), we can simply start it at its leftmost
+    // value and increment it with j
+    Vec3* scaledV2 = copyScaleVec3(arguments -> step2, calcCoord(width, 0));
+    Vec3* step = copyScaleVec3(arguments -> step2, -1);
+    Vec3* temp = add(scaledV1, &cameraDirection);
+    int index = 3 * i * width;
+    Vec3* dir = makeVec3(0, 0, 0);
+    Ray* ray = makeRay(&cameraLocation, &cameraLocation);
+    
     for (uint16_t j = 0; j < width; j++) {
-        // printf("DOING %"PRIu16", %"PRIu16"\n", i, j);
-        double scale1 = calcCoord(height, i);
-        double scale2 = calcCoord(width, j);
-        Vec3* scaledV1 = copyScaleVec3(arguments -> step1, scale1);
-        Vec3* scaledV2 = copyScaleVec3(arguments -> step2, scale2);
-        Vec3* dir = add3(scaledV1, scaledV2, &cameraDirection);
-        Ray* ray = makeRayPointDir(&cameraLocation, dir);
+        incVec3(scaledV2, step);
+        setAddVec3(dir, temp, scaledV2);
+        normalize(dir);
+        Vec3* to = add(&cameraLocation, dir);
+        ray -> to = to;
+        ray -> dir = dir;
         Rgb* color = trace(ray, arguments -> spheres, arguments -> sphereLength, 0);
         if (color == NULL) color = makeRgb(135, 206, 235); // sky color
-        int index = i * width + j;
-        arguments -> pixels[index] = color;
-        free(scaledV1);
-        free(scaledV2);
-        free(dir);
-        freeRay(ray);
-        free(ray);
+        arguments -> pixels[index++] = color -> b;
+        arguments -> pixels[index++] = color -> g;
+        arguments -> pixels[index++] = color -> r;
+        free(color);
+        free(to);
     }
+
+    freeRay(ray);
+    free(ray);
+    free(scaledV1);
+    free(scaledV2);
+    free(temp);
+    free(step);
     return NULL;
 }
 
@@ -111,6 +146,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
         }
         if (normal != NULL && before == minDistance) free(normal);
     }
+
     if (normalHit == NULL) { // no hit
         return NULL;
     } else {
@@ -119,17 +155,21 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
         Rgb* baseColor = getPixelData(hit, hitLocation);
 
         int inside = 0;
-        if (dot(ray -> dir, normalHit) > 0) {
+
+        double dotProd = dot(ray -> dir, normalHit);
+
+        if (dotProd > 0) {
             inside = 1;
             scaleVec3(normalHit, -1);
+            dotProd *= -1;
         }
 
         if ((hit -> reflectivity > 0 || hit -> refractivity > 0) && depth < MAX_DEPTH) {
             Rgb* refractionColor = makeRgb(0, 0, 0);
             free(restColor);
-            double ratio = -1 * dot(normalHit, ray -> dir); // both normal vectors
+            double ratio = -dotProd; // both normal vectors
             double fresnel = 0.2 + 0.8 * pow(1 - ratio, 2); // TODO: make this better?
-            Vec3* reflectDir = reflectVector(normalHit, ray -> dir); // reflect ray across the normal vector
+            Vec3* reflectDir = reflectVector(normalHit, ray -> dir, -ratio); // reflect ray across the normal vector
             Vec3* scaledNormal = copyScaleVec3(normalHit, SMALL);
             // We want to move the origin of the ray slightly in the direction of the normal vector
             // So that recursive calls to trace don't continually hit the same point over and over again
@@ -142,7 +182,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
                 free(refractionColor);
                 double d = hit -> refractionIndex;
                 double index = inside ? d : 1/d; // TODO: adjust
-                Vec3* refrDir = refractVector(ray -> dir, normalHit, index);
+                Vec3* refrDir = refractVector(ray -> dir, normalHit, index, dotProd);
                 if (refrDir == NULL) {
                     refractionColor = makeRgb(0, 0, 0);
                 } else {
@@ -189,20 +229,16 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             }
             if (normal != NULL) free(normal);
         }
-        Vec3* lightDirection = sub(&light, hitLocation);
-        normalize(lightDirection);
-        double d = dot(normalHit, lightDirection);
+        double d = -dot(normalHit, lightRay -> dir);
         
         scale(baseColor, shadow == 1 ? 0.0 : fmax(0.0, d));
-        Rgb* finalColor = addRgb(baseColor, restColor);
+        incColor(baseColor, restColor);
         free(restColor);
-        free(baseColor);
         free(hitLocation);
-        free(lightDirection);
         freeRay(lightRay);
         free(lightRay);
         free(normalHit);
-        return finalColor;
+        return baseColor;
     }
 }
 
@@ -210,18 +246,13 @@ double toRads(double deg) {
     return deg * PI / 180;
 }
 
-static void drawRgb(Rgb* rgb, FILE* file) {
-    fputc(rgb -> b, file);
-    fputc(rgb -> g, file);
-    fputc(rgb -> r, file);
-}
-
+// Takes an integer in [0, maxval] and returns an integer in [-maxval/2, maxval/2]
 static int16_t calcCoord(uint16_t coord, uint16_t value) {
-    int16_t offset = (coord / 2 - value); // offset from middle in pixels
+    int16_t offset = (coord / 2 - value);
     return offset;
 }
 
-static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere** spheres, int sphereLength, Rgb** pixels, uint16_t row) {
+static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere** spheres, int sphereLength, unsigned char* pixels, uint16_t row) {
     ThreadArgs* args = malloc(sizeof(ThreadArgs));
     args -> step1 = r1;
     args -> step2 = r2;
@@ -230,11 +261,4 @@ static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere** spheres, int sphe
     args -> pixels = pixels;
     args -> row = row;
     return args;
-}
-
-static void writePixels(Rgb** pixels, FILE* fp) {
-    for (int i = 0; i < width * height; i++) {
-        Rgb* pixel = pixels[i];
-        drawRgb(pixel, fp);
-    }
 }
