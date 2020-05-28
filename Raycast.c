@@ -173,7 +173,8 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             Vec3* reflectDir = reflectVector(normalHit, ray -> dir, -ratio); // reflect ray across the normal vector
             // We want to move the origin of the ray slightly in the direction of the normal vector
             // So that recursive calls to trace don't continually hit the same point over and over again
-            Vec3* rayOrigin = makeVec3(hitLocation -> x + normalHit -> x * SMALL, hitLocation -> y + normalHit -> y * SMALL, hitLocation -> z + normalHit -> z * SMALL);
+            Vec3* rayOrigin = makeVec3(hitLocation -> arr[0] + normalHit -> arr[0] * SMALL, hitLocation -> arr[1] + normalHit -> arr[1] * SMALL, hitLocation -> arr[2] + normalHit -> arr[2] * SMALL);
+
             Ray* newRay = makeRayPointDir(rayOrigin, reflectDir);
             Rgb* reflectionColor = trace(newRay, spheres, sphereLength, depth + 1);
             if (reflectionColor == NULL) reflectionColor = makeRgb(255, 255, 255);
@@ -188,7 +189,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
                     refractionColor = makeRgb(0, 0, 0);
                 } else {
                     normalize(refrDir);
-                    setVec3(newRay -> from, hitLocation -> x - normalHit -> x * SMALL, hitLocation -> y - normalHit -> y * SMALL, hitLocation -> z - normalHit -> z * SMALL);
+                    setVec3(newRay -> from, hitLocation -> arr[0] - normalHit -> arr[0] * SMALL, hitLocation -> arr[1] - normalHit -> arr[1] * SMALL, hitLocation -> arr[2] - normalHit -> arr[2] * SMALL);
                     newRay -> dir = refrDir;
                     setAddVec3(newRay -> to, newRay -> from, refrDir);
                     refractionColor = trace(newRay, spheres, sphereLength, depth + 1);
@@ -222,6 +223,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             if (normal != NULL && onLine(lightRay, dummy) == 1) {
                 shadow = 1;
                 dummy = INFTY;
+                break;
             }
             if (normal != NULL) free(normal);
         }

@@ -1,14 +1,13 @@
 #ifndef VEC3_H
 #define VEC3_H
+#include <immintrin.h>
 
-struct _Vec3 {
-    double x;
-    double y;
-    double z;
-    double mag2;
+union _Vec3 {
+    __m256d m;
+    double arr[4];
 };
 
-typedef struct _Vec3 Vec3;
+typedef union _Vec3 Vec3;
 
 Vec3* makeVec3(double, double, double);
 double dot(Vec3*, Vec3*);
@@ -28,4 +27,6 @@ Vec3* rotate(Vec3*, Vec3*, double);
 void incVec3(Vec3*, Vec3*);
 void setVec3(Vec3*, double, double, double);
 void setAddVec3(Vec3*, Vec3*, Vec3*);
+Vec3* invert(Vec3*);
+
 #endif

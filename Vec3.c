@@ -3,44 +3,65 @@
 #include <math.h>
 #include "Vec3.h"
 
+static Vec3* makeVec3M(__m256d m) {
+    Vec3* vec = malloc(sizeof(Vec3));
+    vec -> m = m;
+    return vec;
+}
+
 Vec3* makeVec3(double x, double y, double z) {
     Vec3* vec = malloc(sizeof(Vec3));
-    vec -> x = x;
-    vec -> y = y;
-    vec -> z = z;
-    vec -> mag2 = x * x + y * y + z * z;
+    vec -> arr[0] = x;
+    vec -> arr[1] = y;
+    vec -> arr[2] = z;
+    vec -> arr[3] = x * x + y * y + z * z;
     return vec;
 }
 
 double dot(Vec3* a, Vec3* b) {
-    return a -> x * b -> x + a -> y * b -> y + a -> z * b -> z;
+    double ax = a -> arr[0];
+    double ay = a -> arr[1];
+    double az = a -> arr[2];
+    double bx = b -> arr[0];
+    double by = b -> arr[1];
+    double bz = b -> arr[2];
+    return ax * bx + ay * by + az * bz;
+    // Vec3 temp;
+    // temp.m = _mm256_dp_pd(a, b, 0b00011111);
+    // return temp.arr[0];
 }
 
 Vec3* sub(Vec3* a, Vec3* b) {
-    return makeVec3(a -> x - b -> x, a -> y - b -> y, a -> z - b -> z);
+    __m256d s = _mm256_sub_pd(a -> m, b -> m);
+    Vec3* ans = makeVec3M(s);
+    printVec3(ans);
+    return ans;
 }
 
 Vec3* add(Vec3* a, Vec3* b) {
-    return makeVec3(a -> x + b -> x, a -> y + b -> y, a -> z + b -> z);
+    __m256d s = _mm256_add_pd(a -> m, b -> m);
+    Vec3* ans = makeVec3M(s);
+    printVec3(ans);
+    return ans;
 }
 
 void printVec3(Vec3* a) {
-    printf("(%f, %f, %f)", a -> x, a -> y, a -> z);
+    printf("(%f, %f, %f)", a -> arr[0], a -> arr[1], a -> arr[2]);
 }
 
 void normalize(Vec3* vec) {
-    double m = sqrt(vec -> mag2);
-    vec -> x /= m;
-    vec -> y /= m;
-    vec -> z /= m;
-    vec -> mag2 = 1.0;
+    double m = 1/sqrt(vec -> arr[3]);
+    vec -> arr[0] = vec -> arr[0] * m;
+    vec -> arr[1] = vec -> arr[1] * m;
+    vec -> arr[2] = vec -> arr[2] * m;
+    vec -> arr[3] = 1.0;
 }
 
 void scaleVec3(Vec3* vec, double d) {
-    vec -> x *= d;
-    vec -> y *= d;
-    vec -> z *= d;
-    vec -> mag2 *= d * d;
+    vec -> arr[0] = vec -> arr[0] * d;
+    vec -> arr[1] = vec -> arr[1] * d;
+    vec -> arr[2] = vec -> arr[2] * d;
+    vec -> arr[3] = vec -> arr[3] * d * d;
 }
 
 /**
@@ -70,28 +91,27 @@ Vec3* refractVector(Vec3* dir, Vec3* normal, double factor, double cosi) {
 }
 
 Vec3* copyScaleVec3(Vec3* vec, double d) {
-    Vec3* new = makeVec3(vec -> x, vec -> y, vec -> z);
+    Vec3* new = makeVec3(vec -> arr[0], vec -> arr[1], vec -> arr[2]);
     scaleVec3(new, d);
     return new;
 }
 
 void copyVec3(Vec3* from, Vec3* to) {
-    to -> x = from -> x;
-    to -> y = from -> y;
-    to -> z = from -> z;
-    to -> mag2 = from -> mag2;
+    to -> arr[0] = from -> arr[0];
+    to -> arr[1] = from -> arr[1];
+    to -> arr[2] = from -> arr[2];
 }
 
 Vec3* cross(Vec3* a, Vec3* b) {
-    return makeVec3(a -> y * b -> z - a -> z * b -> y,
-                    a -> z * b -> x - a -> x * b -> z,
-                    a -> x * b -> y - a -> y * b -> x);
+    return makeVec3(a -> arr[1] * b -> arr[2] - a -> arr[2] * b -> arr[1],
+                    a -> arr[2] * b -> arr[0] - a -> arr[0] * b -> arr[2],
+                    a -> arr[0] * b -> arr[1] - a -> arr[1] * b -> arr[0]);
 }
 
 Vec3** getOrthogonalVectors(Vec3* vec) {
     Vec3* temp = makeVec3(0, 0, 0);
     copyVec3(vec, temp);
-    temp -> z += 1; // any non-parallel vector
+    temp -> arr[3] += 1; // any non-parallel vector
 
     Vec3* v1 = cross(vec, temp);
     Vec3* v2 = cross(vec, v1);
@@ -130,22 +150,26 @@ Vec3* add3(Vec3* a, Vec3* b, Vec3* c) {
 }
 
 void incVec3(Vec3* a, Vec3* b) {
-    a -> x += b -> x;
-    a -> y += b -> y;
-    a -> z += b -> z;
-    a -> mag2 = (a -> x * a -> x + a -> y * a -> y + a -> z * a -> z);
+    a -> arr[0] = a -> arr[0] + b -> arr[0];
+    a -> arr[1] = a -> arr[1] + b -> arr[1];
+    a -> arr[2] = a -> arr[2] + b -> arr[2];
+    a -> arr[3] = dot(a, a);
 }
 
 void setVec3(Vec3* vec, double a, double b, double c) {
-    vec -> x = a;
-    vec -> y = b;
-    vec -> z = c;
-    vec -> mag2 = a * a + b * b + c * c;
+    vec -> arr[0] = a;
+    vec -> arr[1] = b;
+    vec -> arr[2] = c;
+    vec -> arr[3] = a * a + b * b + c * c;
 }
 
 void setAddVec3(Vec3* a, Vec3* b, Vec3* c) {
-    a -> x = b -> x + c -> x;
-    a -> y = b -> y + c -> y;
-    a -> z = b -> z + c -> z;
-    a -> mag2 = (a -> x * a -> x + a -> y * a -> y + a -> z * a -> z);
+    a -> arr[0] = b -> arr[0] + c -> arr[0];
+    a -> arr[1] = b -> arr[1] + c -> arr[1];
+    a -> arr[2] = b -> arr[2] + c -> arr[2];
+    a -> arr[3] = (a -> arr[0] * a -> arr[0] + a -> arr[1] * a -> arr[1] + a -> arr[2] * a -> arr[2]);
+}
+
+Vec3* invert(Vec3* a) {
+    return makeVec3(1 / a -> arr[0], 1 / a -> arr[1], 1 / a -> arr[2]);
 }

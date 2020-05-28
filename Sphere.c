@@ -21,7 +21,10 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivi
     sphere -> refractionIndex = refractionIndex;
     Angles* temp = makeAngles(0, 0, 0);
     sphere -> rotation = anglesToQuaternion(temp);
-    sphere -> next = NULL;
+    BoundingBox* box = malloc(sizeof(BoundingBox));
+    box -> min = makeVec3(center -> arr[0] - r, center -> arr[1] - r, center -> arr[2] - r);
+    box -> max = makeVec3(center -> arr[0] + r, center -> arr[1] + r, center -> arr[2] + r);
+    sphere -> box = box;
     free(temp);
     return sphere;
 }
@@ -37,7 +40,10 @@ Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, double re
     sphere -> refractionIndex = index;
     Angles* temp = makeAngles(rx * PI / 180, ry * PI / 180, rz * PI / 180);
     sphere -> rotation = anglesToQuaternion(temp);
-    sphere -> next = NULL;
+    BoundingBox* box = malloc(sizeof(BoundingBox));
+    box -> min = makeVec3(center -> arr[0] - r, center -> arr[1] - r, center -> arr[2] - r);
+    box -> max = makeVec3(center -> arr[0] + r, center -> arr[1] + r, center -> arr[2] + r);
+    sphere -> box = box;
     free(temp);
     return sphere;
 }
@@ -48,9 +54,10 @@ void freeSphere(Sphere* sphere) {
 }
 
 Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
+    if (!intersectsBox(ray, sphere -> box)) return NULL;
     Vec3* L = sub(sphere -> center, ray -> from);
     double tca = dot(L, ray -> dir);
-    double d2 = L -> mag2 - tca * tca;
+    double d2 = L -> arr[3] - tca * tca;
     double r2 = sphere -> radius * sphere -> radius;
     if (d2 > r2) { // no intersect
         free(L);
@@ -84,8 +91,8 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     Vec3* coordinates = sub(point, sphere -> center);
     Vec3* rotated = multiply(sphere -> rotation, coordinates);
 
-    double y = (rotated -> z / sphere -> radius + 1) / 2; // in range [0, 1]
-    double angle = atan2(rotated -> y, rotated -> x); // in [-pi, pi]
+    double y = (rotated -> arr[2] / sphere -> radius + 1) / 2; // in range [0, 1]
+    double angle = atan2(rotated -> arr[1], rotated -> arr[0]); // in [-pi, pi]
 
     double x = (angle + PI) / (2 * PI) + 2; // transform [-pi, pi] to [0, 1], + 2 ensurse that it's positive
     x = x - (int) x;
@@ -93,9 +100,4 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     free(coordinates);
     free(rotated);
     return getPixel(sphere -> texture, x, y);
-}
-
-Sphere* insertSphere(Sphere* head, Sphere* new) {
-    new -> next = head;
-    return new;
 }
