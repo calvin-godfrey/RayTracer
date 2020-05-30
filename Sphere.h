@@ -23,7 +23,7 @@ typedef struct _Sphere Sphere;
 Sphere* makeSphere(Vec3*, double, Rgb*, Texture*, double, double, double);
 Sphere* makeSphereRotation(Vec3*, double, Rgb*, Texture*, double, double, double, double, double, double);
 void freeSphere(Sphere*);
-Vec3* sphereIntersect(Sphere*, Ray*, double*);
+Vec3 sphereIntersect(Sphere*, Ray*, double*);
 Rgb* getPixelData(Sphere*, Vec3*);
 Sphere* insertSphere(Sphere*, Sphere*);
 

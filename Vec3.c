@@ -12,6 +12,15 @@ Vec3* makeVec3(double x, double y, double z) {
     return vec;
 }
 
+Vec3 initVec3(double x, double y, double z) {
+    Vec3 vec;
+    vec.x = x;
+    vec.y = y;
+    vec.z = z;
+    vec.mag2 = x * x + y * y + z * z;
+    return vec;
+}
+
 double dot(Vec3* a, Vec3* b) {
     return a -> x * b -> x + a -> y * b -> y + a -> z * b -> z;
 }
@@ -75,7 +84,9 @@ Vec3* copyScaleVec3(Vec3* vec, double d) {
     return new;
 }
 
-void copyVec3(Vec3* from, Vec3* to) {
+/* First parameter is destination
+*/
+void copyVec3(Vec3* to, Vec3* from) {
     to -> x = from -> x;
     to -> y = from -> y;
     to -> z = from -> z;
@@ -89,11 +100,11 @@ Vec3* cross(Vec3* a, Vec3* b) {
 }
 
 Vec3** getOrthogonalVectors(Vec3* vec) {
-    Vec3* temp = makeVec3(0, 0, 0);
-    copyVec3(vec, temp);
-    temp -> z += 1; // any non-parallel vector
+    Vec3 temp;
+    copyVec3(&temp, vec);
+    temp.z += 1; // any non-parallel vector
 
-    Vec3* v1 = cross(vec, temp);
+    Vec3* v1 = cross(vec, &temp);
     Vec3* v2 = cross(vec, v1);
     scaleVec3(v2, -1); // just to make it work
 
@@ -103,7 +114,6 @@ Vec3** getOrthogonalVectors(Vec3* vec) {
     Vec3** ans = malloc(sizeof(Vec3*) * 2);
     ans[1] = v1;
     ans[0] = v2;
-    free(temp);
     return ans;
 }
 

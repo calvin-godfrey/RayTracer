@@ -47,14 +47,17 @@ void freeSphere(Sphere* sphere) {
     freeTexture(sphere -> texture);
 }
 
-Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
-    Vec3* L = sub(sphere -> center, ray -> from);
-    double tca = dot(L, ray -> dir);
-    double d2 = L -> mag2 - tca * tca;
+Vec3 sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
+    Vec3 bad = {INFTY, INFTY, INFTY, 0};
+    Vec3 L;
+    setVec3(&L, sphere -> center -> x - ray -> from -> x,
+                sphere -> center -> y - ray -> from -> y,
+                sphere -> center -> z - ray -> from -> z);
+    double tca = dot(&L, ray -> dir);
+    double d2 = L.mag2 - tca * tca;
     double r2 = sphere -> radius * sphere -> radius;
     if (d2 > r2) { // no intersect
-        free(L);
-        return NULL;
+        return bad;
     } else {
         double thc = sqrt(r2 - d2);
         double x0 = tca - thc;
@@ -63,14 +66,14 @@ Vec3* sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
         double max = fmax(x0, x1);
         double ans = min > 0 ? min : max;
         if (ans < 0) {
-            free(L);
-            return NULL;
+            return bad;
         }
         if (ans < *minDistance) *minDistance = ans;
         Vec3* point = getPoint(ray, ans);
-        Vec3* normal = sub(point, sphere -> center);
-        normalize(normal);
-        free(L);
+        Vec3 normal;
+        setVec3(&normal, point -> x - sphere -> center -> x,
+                         point -> y - sphere -> center -> y,
+                         point -> z - sphere -> center -> z);
         free(point);
         return normal;
     }    
@@ -86,7 +89,6 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
 
     double y = (rotated -> z / sphere -> radius + 1) / 2; // in range [0, 1]
     double angle = atan2(rotated -> y, rotated -> x); // in [-pi, pi]
-
     double x = (angle + PI) / (2 * PI) + 2; // transform [-pi, pi] to [0, 1], + 2 ensurse that it's positive
     x = x - (int) x;
     if (x == 1.0) x = 0.0; // edge case, texture only works on [0, 1)

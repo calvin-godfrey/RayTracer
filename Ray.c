@@ -14,7 +14,7 @@ Ray* makeRay(Vec3* from, Vec3* to) {
 }
 
 void freeRay(Ray* ray) {
-    if (ray -> pointDir == 1) free(ray -> to);
+    if (ray -> pointDir) free(ray -> to);
     free(ray -> dir);
 }
 

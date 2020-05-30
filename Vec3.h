@@ -28,4 +28,5 @@ Vec3* rotate(Vec3*, Vec3*, double);
 void incVec3(Vec3*, Vec3*);
 void setVec3(Vec3*, double, double, double);
 void setAddVec3(Vec3*, Vec3*, Vec3*);
+Vec3 initVec3(double, double, double);
 #endif
