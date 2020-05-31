@@ -15,14 +15,16 @@ extern Vec3 cameraLocation;
 extern Vec3 cameraDirection;
 extern double cameraOrientation;
 extern Vec3 light;
+extern Rgb lightColor;
 
 static double toRads(double deg);
 static int16_t calcCoord(uint16_t, uint16_t);
-static Rgb* trace(Ray*, Sphere**, int, int);
-static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Sphere**, int, unsigned char*, uint16_t);
+static Rgb* trace(Ray*, Sphere*, int);
+static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Sphere*, unsigned char*, uint16_t);
 static void* threadCall(void*);
 
-void raycast(FILE* file, Sphere** spheres, int sphereLength) {
+void raycast(FILE* file, Sphere* spheres) {
+    normalize(&cameraDirection);
     // The camera direction uniquely defines a plane that will represent the
     // viewpoint of the renderer.
 
@@ -62,7 +64,7 @@ void raycast(FILE* file, Sphere** spheres, int sphereLength) {
 
     for (uint16_t i = 0; i < height; i++) {
         // The arguments are the two basis vectors, sphere data, pixel array, and row number
-        ThreadArgs* args = makeThreadArgs(r1, r2, spheres, sphereLength, pixels, i);
+        ThreadArgs* args = makeThreadArgs(r1, r2, spheres, pixels, i);
         fullArgs[i] = args;
 
         // create the thread
@@ -112,7 +114,7 @@ static void* threadCall(void* args) {
         setAddVec3(&to, &cameraLocation, dir);
         ray -> to = &to;
         ray -> dir = dir;
-        Rgb* color = trace(ray, arguments -> spheres, arguments -> sphereLength, 0);
+        Rgb* color = trace(ray, arguments -> spheres, 0);
         if (color == NULL) color = makeRgb(135, 206, 235); // sky color
         arguments -> pixels[index++] = color -> b;
         arguments -> pixels[index++] = color -> g;
@@ -129,22 +131,28 @@ static void* threadCall(void* args) {
     return NULL;
 }
 
-static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
+static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
+    Sphere* head = spheres;
     double minDistance = INFTY;
     Sphere* hit = NULL;
     Vec3 normalHit = {INFTY, INFTY, INFTY, 0.0};
     int index = 0;
+    int i = -1;
     // find which sphere the ray hits
-    for (int i = 0; i < sphereLength; i++) {
+    while (head != NULL) {
+        i++;
         double before = minDistance;
-        Sphere* sphere = spheres[i];
-        Vec3 normal = sphereIntersect(sphere, ray, &minDistance);
-        if (normal.x == INFTY) continue; // normalized, only one check is necessary
+        Vec3 normal = sphereIntersect(head, ray, &minDistance);
+        if (normal.x == INFTY) { // normalized, only one check is necessary
+            head = head -> next;
+            continue;
+        }
         if (before != minDistance) {
-            hit = sphere;
+            hit = head;
             normalHit = normal;
             index = i;
         }
+        head = head -> next;
     }
 
     if (normalHit.x == INFTY) {
@@ -152,8 +160,10 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
     } else {
         normalize(&normalHit);
         Vec3* hitLocation = getPoint(ray, minDistance);
+        adjustNormal(hit, hitLocation, &normalHit);
         Rgb restColor = {0, 0, 0};
         Rgb* baseColor = getPixelData(hit, hitLocation);
+        multiplyColors(baseColor, &lightColor);
 
         int inside = 0;
 
@@ -175,7 +185,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
             Vec3 rayOrigin = {hitLocation -> x + normalHit.x * SMALL, hitLocation -> y + normalHit.y * SMALL, hitLocation -> z + normalHit.z * SMALL, 0.0};
 
             Ray* newRay = makeRayPointDir(&rayOrigin, reflectDir);
-            Rgb* reflectionColor = trace(newRay, spheres, sphereLength, depth + 1);
+            Rgb* reflectionColor = trace(newRay, spheres, depth + 1);
             if (reflectionColor == NULL) reflectionColor = makeRgb(255, 255, 255);
 
             if (hit -> refractivity > 0) {
@@ -189,7 +199,7 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
                     setVec3(newRay -> from, hitLocation -> x - normalHit.x * SMALL, hitLocation -> y - normalHit.y * SMALL, hitLocation -> z - normalHit.z * SMALL);
                     copyVec3(newRay -> dir, refrDir);
                     setAddVec3(newRay -> to, newRay -> from, refrDir);
-                    refractionColor = trace(newRay, spheres, sphereLength, depth + 1);
+                    refractionColor = trace(newRay, spheres, depth + 1);
                     if (refractionColor == NULL) refractionColor = makeRgb(255, 255, 255);
                 }
             }
@@ -212,16 +222,22 @@ static Rgb* trace(Ray* ray, Sphere** spheres, int sphereLength, int depth) {
         double dummy = INFTY;
         int shadow = 0;
         // Check all other spheres to see if there is a shadow
-        for (int i = 0; i < sphereLength; i++) {
-            if (i == index) continue;
-            Vec3 normal = sphereIntersect(spheres[i], lightRay, &dummy);
+        head = spheres;
+        i = -1;
+        while (head != NULL) {
+            i++;
+            if (i == index) {
+                head = head -> next;
+                continue;
+            }
+            Vec3 normal = sphereIntersect(head, lightRay, &dummy);
             if (normal.x != INFTY && onLine(lightRay, dummy) == 1) {
                 shadow = 1;
                 dummy = INFTY;
                 break;
             }
+            head = head -> next;
         }
-        normalize(&normalHit);
         double d = -dot(&normalHit, lightRay -> dir);
         
         scale(baseColor, shadow == 1 ? 0.0 : fmax(0.0, d));
@@ -243,12 +259,11 @@ static int16_t calcCoord(uint16_t coord, uint16_t value) {
     return offset;
 }
 
-static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere** spheres, int sphereLength, unsigned char* pixels, uint16_t row) {
+static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere* spheres, unsigned char* pixels, uint16_t row) {
     ThreadArgs* args = malloc(sizeof(ThreadArgs));
     args -> step1 = r1;
     args -> step2 = r2;
     args -> spheres = spheres;
-    args -> sphereLength = sphereLength;
     args -> pixels = pixels;
     args -> row = row;
     return args;

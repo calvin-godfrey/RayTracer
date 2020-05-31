@@ -4,6 +4,9 @@
 #include "Sphere.h"
 #include "Consts.h"
 
+
+static double* getSphereCoordinates(Sphere*, Vec3*);
+
 /**
  * Returns a pointer to a Sphere struct object. Note that in the logic used, it is assumed that
  * if a sphere is refractive (i.e., has some transparency), it is also reflective. Also note
@@ -26,7 +29,7 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivi
     return sphere;
 }
 
-Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, double refl, double refrac, double index, double rx, double ry, double rz) {
+Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, Texture* n, double refl, double refrac, double index, double rx, double ry, double rz) {
     Sphere* sphere = malloc(sizeof(Sphere));
     sphere -> center = center;
     sphere -> radius = r;
@@ -34,6 +37,7 @@ Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, double re
     sphere -> reflectivity = refl;
     sphere -> refractivity = refrac;
     sphere -> texture = t;
+    sphere -> normalMap = n;
     sphere -> refractionIndex = index;
     Angles* temp = makeAngles(rx * PI / 180, ry * PI / 180, rz * PI / 180);
     sphere -> rotation = anglesToQuaternion(temp);
@@ -83,7 +87,33 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     if (sphere -> texture == NULL) {
         return makeRgb(sphere -> color -> r, sphere -> color -> g, sphere -> color -> b);
     }
+    double* arr = getSphereCoordinates(sphere, point);
+    double x = arr[0];
+    double y = arr[1];
+    free(arr);
+    return getPixel(sphere -> texture, x, y);
+}
 
+/**
+ * Insert second parameter as the new head, replacing first
+ */
+Sphere* insertSphere(Sphere* head, Sphere* new) {
+    new -> next = head;
+    return new;
+}
+
+void freeSpheres(Sphere* head) {
+    Sphere* next = head -> next;
+    if (next != NULL) {
+        freeSpheres(next);
+        freeSphere(next);
+        free(next);
+    }
+    freeSphere(head);
+    free(head);
+}
+
+static double* getSphereCoordinates(Sphere* sphere, Vec3* point) {
     Vec3* coordinates = sub(point, sphere -> center);
     Vec3* rotated = multiply(sphere -> rotation, coordinates);
 
@@ -94,10 +124,33 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     if (x == 1.0) x = 0.0; // edge case, texture only works on [0, 1)
     free(coordinates);
     free(rotated);
-    return getPixel(sphere -> texture, x, y);
+    double* ans = malloc(2 * sizeof(double));
+    ans[0] = x;
+    ans[1] = y;
+    return ans;
 }
 
-Sphere* insertSphere(Sphere* head, Sphere* new) {
-    new -> next = head;
-    return new;
+/**
+ * Adjusts the normal (3rd parameter) at point (2nd paramter) according to normal map
+ */
+void adjustNormal(Sphere* sphere, Vec3* point, Vec3* normal) {
+    if (sphere -> normalMap == NULL) return;
+    double* arr = getSphereCoordinates(sphere, point);
+    double x = arr[0];
+    double y = arr[1];
+    free(arr);
+    Rgb* color = getPixel(sphere -> normalMap, x, y);
+    x = (color -> r) / 255.0;
+    y = (color -> g) / 255.0;
+    double z = (color -> b) / 255.0;
+    Vec3** ortho = getOrthogonalVectors(normal); // basis of tangent space
+    Vec3* tangent = ortho[0];
+    Vec3* bitangent = ortho[1];
+    free(ortho);
+    scaleVec3(normal, z);
+    scaleVec3(tangent, x);
+    scaleVec3(bitangent, y);
+    setAddVec3(normal, normal, tangent);
+    setAddVec3(normal, normal, bitangent);
+    normalize(normal);
 }

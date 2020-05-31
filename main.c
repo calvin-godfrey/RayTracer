@@ -16,10 +16,17 @@ uint16_t width;
 uint16_t height;
 double aspectRatio;
 double vFOV;
-Vec3 cameraLocation = {-10, 30, 0, 121};
-Vec3 cameraDirection = {0, -1, 0.0, 1};
+Vec3 cameraLocation;
+Vec3 cameraDirection;
 double cameraOrientation = 0; // in radians
-Vec3 light = {-0, 110, 10, 0};
+Vec3 light;
+Rgb lightColor;
+int frames;
+
+int parseInput(FILE*, char* out);
+static int setCamera(char*);
+static int setLight(char*);
+static char* getFirstToken(char*);
 
 static void writeHeader(FILE* file) {
     // 800x600 image, 24 bits per pixel
@@ -33,8 +40,8 @@ static void writeHeader(FILE* file) {
 }
 
 static void setGlobalVariables(char** argv) {
-    sscanf(argv[1], "%"SCNu16, &width);
-    sscanf(argv[2], "%"SCNu16, &height);
+    sscanf(argv[2], "%"SCNu16, &width);
+    sscanf(argv[3], "%"SCNu16, &height);
     aspectRatio = (width * 1.0) / height;
     vFOV = atan(tan(hFOV * PI / 360.0) * 1.0 / aspectRatio) * 360 / PI;
 }
@@ -42,7 +49,7 @@ static void setGlobalVariables(char** argv) {
 int main(int argc, char** argv) {
     if (argc == 2 && strcmp(argv[1], "--help") == 0) {
         printf("Usage:\n");
-        printf("    raycaster <description file> <width> <height> <outputfile>\n");
+        printf("    raycaster <description file> <width> <height> <outputfile prefix>\n");
         printf("    e.g. raycaster 640 480 file.tga\n");
         printf("    Note that the image generated uses the tga format\n");
         return 1;
@@ -52,51 +59,143 @@ int main(int argc, char** argv) {
     }
     srand(time(0));
     setGlobalVariables(argv);
-    Rgb* red = makeRgb(255, 0, 0);
-    Rgb* green = makeRgb(0, 200, 0);
-    Rgb* blue = makeRgb(0, 0, 255);
-    // Rgb* gray = makeRgb(200, 200, 201);
-    Texture* t = makeTexture("../data/map.tga");
-    int num;
-    sscanf(argv[4], "%d", &num);
 
-    for (int i = 0; i < 360; i++) {
-        cameraDirection.x = cos(245 * PI / 180);
-        cameraDirection.y = sin(245 * PI / 180);
-        cameraDirection.z = 0.5 * sin(i * PI / 180);
-        normalize(&cameraDirection);
+    FILE* input = fopen(argv[1], "r");
+    if (input == NULL) {
+        printf("Failure to open file %s\n", argv[1]);
+        return 1;
+    }
 
-        // Vec3 center1 = {2.8 + 9 * cos(i * PI / 180.0), 0.0 + 9 * sin(i * PI / 180.0), -0.0, 0};
-        // Vec3 center2 = {2.8, -0.0, -1.0, 6.67};
-        // Vec3 center3 = {10.0, 0.0, -10011.0 + center2.z - test / 1000.0, 100000.0};
-        // Sphere* sphere1 = makeSphere(&center1, 0.8,                         red,   t, 1.0, 0.0, 0.0);
-        // Sphere* sphere2 = makeSphere(&center2, 5.8,                        green,  NULL, 1.0, 1.0, 1.13);
-        // Sphere* sphere3 = makeSphere(&center3, 9999.0 - sphere2 -> radius, gray,  NULL, 0.0, 0.0, 1.0);
-        // Sphere* spheres[3] = {sphere1, sphere2, sphere3};
-        
-        Sphere* spheres[num];
-        for (int j = 0; j < num; j++) {
-            Vec3* center = makeVec3(-80 + 3 * j * j, 0, 0);
-            Sphere* sphere = makeSphere(center, 1 + 5 /(j * 0.4 + 1), j % 2 == 0 ? red : green, NULL, 1.0, 1.0, 1.2);
-            spheres[j] = sphere;
-        }
+    if (parseInput(input, argv[4])) {
+        printf("Something went wrong\n");
+        return 1;
+    }
+    return 0;
+}
 
+int parseInput(FILE* fp, char* out) {
+    char line[LINE_LENGTH];
+    if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+    int camFlag, lightFlag;
+    if (sscanf(line, "%d %d %d", &frames, &camFlag, &lightFlag) != 3) return 1;
+    if (camFlag) {
+        if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+        if (setCamera(line)) return 1;
+    }
+    if (lightFlag) {
+        if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+        if (setLight(line)) return 1;
+    }
+    for (int i = 0; i < frames; i++) {
         char* fileName = calloc(100, sizeof(char));
-        sprintf(fileName, "%s%03d.tga", argv[3], i);
-        printf("%s\n", fileName);
+        sprintf(fileName, "%s%03d.tga", out, i);
+        printf("Preparing for %s\n", fileName);
         FILE* outFile = fopen(fileName, "w+");
         writeHeader(outFile);
-        raycast(outFile, spheres, num);
+
+        if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+        int n;
+        if (sscanf(line, "%d", &n) != 1) return 1;
+        if (!camFlag) {
+            if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+            if (setCamera(line)) return 1;
+        }
+        if (!lightFlag) {
+            if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+            if (setLight(line)) return 1;
+        }
+        Sphere* head = NULL;
+        for (int j = 0; j < n; j++) {
+            if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+            char type[LINE_LENGTH];
+            if (sscanf(line, "%s", type) != 1) return 1;
+            if (strcmp(type, "SPHERE") == 0) {
+                double x, y, z, r;
+                double rx = 0;
+                double ry = 0;
+                double rz = 0;
+                double index = 0;
+                double refraction = 0;
+                double reflection = 0;
+                Rgb* color = NULL;
+                Texture* texture = NULL;
+                Texture* map = makeTexture("data/normal.tga");
+                if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+                if (sscanf(line, "%lf %lf %lf %lf", &x, &y, &z, &r) != 4) return 1;
+                Vec3* center = makeVec3(x, y, z);
+                while (1) {
+                    if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
+                    char* token = getFirstToken(line);
+                    if (strcmp(token, "DONE") == 0) {
+                        free(token);
+                        break;
+                    } else if (strcmp(token, "TEXTURE") == 0) {
+                        char* path = calloc(LINE_LENGTH, sizeof(char));
+                        if (sscanf(line + strlen(token) + 1, "%s", path) != 1) return 1;
+                        texture = makeTexture(path);
+                    } else if (strcmp(token, "COLOR") == 0) {
+                        unsigned char r, g, b;
+                        if (sscanf(line + strlen(token) + 1, "%hhu %hhu %hhu", &r, &g, &b) != 3) return 1;
+                        color = makeRgb(r, g, b);
+                    } else if (strcmp(token, "ROTATION") == 0) {
+                        if (sscanf(line + strlen(token) + 1, "%lf %lf %lf", &rx, &ry, &rz) != 3) return 1;
+                    } else if (strcmp(token, "INDEX") == 0) {
+                        if (sscanf(line + strlen(token) + 1, "%lf", &index) != 1) return 1;
+                    } else if (strcmp(token, "REFLECTIVITY") == 0) {
+                        if (sscanf(line + strlen(token) + 1, "%lf", &reflection) != 1) return 1;
+                    } else if (strcmp(token, "REFRACTIVITY") == 0) {
+                        if (sscanf(line + strlen(token) + 1, "%lf", &refraction) != 1) return 1;
+                    }
+                    free(token);
+                }
+                Sphere* sphere = makeSphereRotation(center, r, color, texture, map, reflection, refraction, index, rx, ry, rz);
+                if (head == NULL) {
+                    head = sphere;
+                } else {
+                    head = insertSphere(head, sphere);
+                }
+            }
+        }
+        printf("Writing to %s\n", fileName);
+        raycast(outFile, head);
+        free(fileName);
+        freeSpheres(head);
         fclose(outFile);
     }
-    // for (int i = 0; i < size; i++) {
-    //     freeSphere(spheres[i]);
-    //     free(spheres[i]);
-    // }
-    // free(spheres);
-    free(red);
-    free(green);
-    free(blue);
-    freeTexture(t);
-    free(t);
+    return 0;
+}
+
+static int setCamera(char* line) {
+    double cx, cy, cz, dx, dy, dz, dt;
+    if (sscanf(line, "%lf %lf %lf %lf %lf %lf %lf\n", &cx, &cy, &cz, &dx, &dy, &dz, &dt) != 7) return 1;
+    cameraLocation.x = cx;
+    cameraLocation.y = cy;
+    cameraLocation.z = cz;
+    cameraDirection.x = dx;
+    cameraDirection.y = dy;
+    cameraDirection.z = dz;
+    cameraDirection.mag2 = dx * dx + dy * dy + dz * dz;
+    cameraOrientation = dt * PI / 180;
+    return 0;
+}
+
+static int setLight(char* line) {
+    double cx, cy, cz;
+    unsigned char r, g, b;
+    if (sscanf(line, "%lf %lf %lf %hhu %hhu %hhu\n", &cx, &cy, &cz, &r, &g, &b) != 6) return 1;
+    light.x = cx;
+    light.y = cy;
+    light.z = cz;
+    lightColor.r = r;
+    lightColor.g = g;
+    lightColor.b = b;
+    return 0;
+}
+
+static char* getFirstToken(char* line) {
+    char* token = calloc(LINE_LENGTH, sizeof(char));
+    int i = 0;
+    while (line[i] != ' ' && line[i] != '\n') i++;
+    strncpy(token, line, i);
+    return token;
 }

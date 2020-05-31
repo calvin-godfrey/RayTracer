@@ -14,27 +14,39 @@ where the framerate is customizable and it uses frames of the form `img000.tga` 
 
 The file should start with a single line containing three integers. The first represents how many frames are described below. The second two integers are both either 0 or 1, which are used as boolean flags for fixed camera and fixed light source, respectively. If fixed camera is 0, for example, then the location of the camera must be described in every frame (and the same is true for the light source).
 
-If either flag is 1, then the position of the camera (resp. light) must be specified as a coordinate triplet of doubles on its own line. So, for example, the header:
+
+If the camera flag is 1, then the position of the camera must be specified as a coordinate septuplet on its own line:
+
+```
+1 1 0
+x y z dx dy dz dt
+```
+
+where `(x, y, z)` is the center of the camrea, `(dx, dy, dz)` is the direction vector of the camera, and `dt` is the rotation of the camera around its direction vector (in degrees). If `dt=0`, for example, then a row of pixels is perpendicular to the `z` axis, and if `dt=pi`, then it is flipped upside down.
+
+If the light flag is 1, then the position of the camera must be specified as a coordinate triplet and color triplet (integers 0-255). For example,
 
 ```
 1 0 1
-10 10 10
+10 10 10 255 255 255
 ```
 
-represents a scene with a single frame with a moving camera and light source that is fixed at (10, 10, 10).
+is a camera at `(10, 10, 10)` that lets out full-bright white lights.
+
+If both camera and light are fixed, then it must be the camera first, then light.
 
 After the header, the following must be specified for each frame, each on its own line on the following order
 
 * Number of objects in scene -- `N`
-* (Optional) Position of camera -- only expected if the fixed camera flag is 0
-* (Optional) Position of light -- only expected if the fixed light flag is 0
+* (Optional) Orientation of camera (as described above) -- only if fixed camera flag is 0
+* (Optional) Orientatoin of light (as described above) -- only if fixed light flag is 0
 * The description of `N` objects.
 
 A sphere, at its minimum, must include its position and radius as follows:
 
 ```
 SPHERE
-a b c R
+LOCATION a b c R
 ```
 
 where the triplet `(a, b, c)` is the position of the center of the sphere and `R` is the radius. There are also optional parameters that will be set to 0 if not included. These optional parameters, in the order they should be included, are:
@@ -76,4 +88,4 @@ user    5m37.548s
 sys     0m15.984s
 ```
 
-which is almost 4 times faster.
+which is almost 4 times faster. Further optimizations reduced it to about 35 seconds real time.

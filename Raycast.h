@@ -9,13 +9,12 @@
 struct _ThreadArgs {
     Vec3* step1;
     Vec3* step2;
-    Sphere** spheres;
-    int sphereLength;
+    Sphere* spheres;
     unsigned char* pixels;
     uint16_t row;
 };
 
 typedef struct _ThreadArgs ThreadArgs;
-void raycast(FILE*, Sphere**, int);
+void raycast(FILE*, Sphere*);
 
 #endif

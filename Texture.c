@@ -38,7 +38,7 @@ Texture* makeTexture(char* fileName) {
     char orientation;
     fseek(file, 17, SEEK_SET);
     fread(&orientation, sizeof(char), 1, file);
-    t -> flipX = (orientation & (1 << 4)) > 0 ? -1 : 1;
+    t -> flipX = (orientation & (1 << 4)) > 0 ? 1 : -1;
     t -> flipY = (orientation & (1 << 5)) > 0 ? -1 : 1;
 
     unsigned char* bytes = calloc(width * height * 3, sizeof(char));
@@ -50,6 +50,7 @@ Texture* makeTexture(char* fileName) {
 }
 
 void freeTexture(Texture* t) {
+    if (t == NULL) return;
     free(t -> bytes);
 }
 
