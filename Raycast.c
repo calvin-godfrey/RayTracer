@@ -36,8 +36,8 @@ void raycast(FILE* file, Sphere* spheres) {
 
     // We then rotate these two basis vectors around the cameraDirection to
     // account for the orientation of the camera
-    Vec3* r1 = rotate(v1, &cameraDirection, cameraOrientation);
-    Vec3* r2 = rotate(v2, &cameraDirection, cameraOrientation);
+    Vec3* r1 = rotate(v1, &cameraDirection, cameraOrientation - PI / 4);
+    Vec3* r2 = rotate(v2, &cameraDirection, cameraOrientation - PI / 4);
 
     // Assuming that the plane resides a distance of one from cameraLocation, these
     // two variables represent how far in each of the two perpendicular directions
@@ -72,6 +72,7 @@ void raycast(FILE* file, Sphere* spheres) {
             printf("Something went wrong: %"PRIu16"\n", i);
             return;
         }
+        // threadCall((void*)args);
     }
 
     // make sure that all of the threads finish execution before writing pixel data to file
@@ -85,6 +86,10 @@ void raycast(FILE* file, Sphere* spheres) {
 
     for (int i = 0; i < height; i++) free(fullArgs[i]);
     free(fullArgs);
+    free(v1);
+    free(v2);
+    free(r1);
+    free(r2);
 }
 
 static void* threadCall(void* args) {
@@ -200,12 +205,13 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
                     copyVec3(newRay -> dir, refrDir);
                     setAddVec3(newRay -> to, newRay -> from, refrDir);
                     refractionColor = trace(newRay, spheres, depth + 1);
-                    if (refractionColor == NULL) refractionColor = makeRgb(255, 255, 255);
+                    if (refractionColor == NULL) refractionColor = makeRgb(135, 206, 235); // sky color
+                    free(refrDir);
                 }
             }
 
-            scale(reflectionColor, fresnel * hit -> reflectivity);
-            scale(refractionColor, (1 - fresnel) * hit -> refractivity);
+            scale(reflectionColor, fresnel * hit -> reflectivity * 0.5);
+            scale(refractionColor, (1 - fresnel) * hit -> refractivity * 0.5);
             
             incColor(reflectionColor, refractionColor);
             multiplyColors(reflectionColor, baseColor);

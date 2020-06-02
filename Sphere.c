@@ -11,7 +11,7 @@ static double* getSphereCoordinates(Sphere*, Vec3*);
  * Returns a pointer to a Sphere struct object. Note that in the logic used, it is assumed that
  * if a sphere is refractive (i.e., has some transparency), it is also reflective. Also note
  * that a sphere cannot have both a texture AND color. Texture has higher priority; if it is
- * null, only then is its color used.
+ * null, only then is its color used
  */
 Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivity, double refractivity, double refractionIndex) {
     Sphere* sphere = malloc(sizeof(Sphere));
@@ -49,6 +49,7 @@ Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, Texture* 
 void freeSphere(Sphere* sphere) {
     free(sphere -> center);
     freeTexture(sphere -> texture);
+    freeTexture(sphere -> normalMap);
 }
 
 Vec3 sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
@@ -106,8 +107,6 @@ void freeSpheres(Sphere* head) {
     Sphere* next = head -> next;
     if (next != NULL) {
         freeSpheres(next);
-        freeSphere(next);
-        free(next);
     }
     freeSphere(head);
     free(head);
@@ -140,17 +139,39 @@ void adjustNormal(Sphere* sphere, Vec3* point, Vec3* normal) {
     double y = arr[1];
     free(arr);
     Rgb* color = getPixel(sphere -> normalMap, x, y);
-    x = (color -> r) / 255.0;
-    y = (color -> g) / 255.0;
-    double z = (color -> b) / 255.0;
-    Vec3** ortho = getOrthogonalVectors(normal); // basis of tangent space
-    Vec3* tangent = ortho[0];
-    Vec3* bitangent = ortho[1];
+    x = (color -> r - 127.5) / 127.5;
+    y = (color -> g - 127.5) / 127.5;
+    double z = (color -> b - 128) / 127.0;
+    free(color);
+    Vec3* ortho = getSphereTangent(sphere, point); // basis of tangent space
+    Vec3 tangent = ortho[0];
+    Vec3 bitangent = ortho[1];
     free(ortho);
     scaleVec3(normal, z);
-    scaleVec3(tangent, x);
-    scaleVec3(bitangent, y);
-    setAddVec3(normal, normal, tangent);
-    setAddVec3(normal, normal, bitangent);
+    scaleVec3(&tangent, y);
+    scaleVec3(&bitangent, x);
+    setAddVec3(normal, normal, &tangent);
+    setAddVec3(normal, normal, &bitangent);
     normalize(normal);
+}
+
+Vec3* getSphereTangent(Sphere* sphere, Vec3* point) {
+    double* arr = getSphereCoordinates(sphere, point);
+    double theta = arr[1];
+    double z = point -> z;
+    // use geometry to avoid expensive trig functions
+    double zr = sqrt(point -> x * point -> x + point -> y * point -> y);
+    double invZr = 1/zr;
+    double cosPhi = point -> x * invZr;
+    double sinPhi = point -> y * invZr;
+
+    Vec3 dpdu = {-point -> y, point -> x, 0, zr*zr};
+    Vec3 dpdv = {z * cosPhi, z * sinPhi, -sphere -> radius * sin(theta), 0};
+    setMag(&dpdv);
+    normalize(&dpdu);
+    normalize(&dpdv);
+    Vec3* ans = malloc(sizeof(Vec3) * 2);
+    ans[0] = dpdu;
+    ans[1] = dpdv;
+    return ans;
 }

@@ -29,4 +29,5 @@ void incVec3(Vec3*, Vec3*);
 void setVec3(Vec3*, double, double, double);
 void setAddVec3(Vec3*, Vec3*, Vec3*);
 Vec3 initVec3(double, double, double);
+void setMag(Vec3*);
 #endif

@@ -102,7 +102,9 @@ Vec3* cross(Vec3* a, Vec3* b) {
 Vec3** getOrthogonalVectors(Vec3* vec) {
     Vec3 temp;
     copyVec3(&temp, vec);
-    temp.z += 1; // any non-parallel vector
+    temp.x += 10; // any non-parallel vector
+    temp.y += 1;
+    temp.z += 1;
 
     Vec3* v1 = cross(vec, &temp);
     Vec3* v2 = cross(vec, v1);
@@ -158,4 +160,11 @@ void setAddVec3(Vec3* a, Vec3* b, Vec3* c) {
     a -> y = b -> y + c -> y;
     a -> z = b -> z + c -> z;
     a -> mag2 = (a -> x * a -> x + a -> y * a -> y + a -> z * a -> z);
+}
+
+void setMag(Vec3* vec) {
+    double x = vec -> x;
+    double y = vec -> y;
+    double z = vec -> z;
+    vec -> mag2 = x * x + y * y + z * z;
 }

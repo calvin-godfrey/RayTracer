@@ -29,5 +29,6 @@ Rgb* getPixelData(Sphere*, Vec3*);
 Sphere* insertSphere(Sphere*, Sphere*);
 void freeSpheres(Sphere*);
 void adjustNormal(Sphere*, Vec3*, Vec3*);
+Vec3* getSphereTangent(Sphere*, Vec3*);
 
 #endif

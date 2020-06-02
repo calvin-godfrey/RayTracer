@@ -52,6 +52,7 @@ LOCATION a b c R
 where the triplet `(a, b, c)` is the position of the center of the sphere and `R` is the radius. There are also optional parameters that will be set to 0 if not included. These optional parameters, in the order they should be included, are:
 
 * Color/Texture -- Either an `(r, g, b)` triplet (each in [0, 255]) or a path to a valid texture image.
+* Normal Map -- Path to a valid texture image that will be parsed as a normal map
 * Reflectivity -- Double in [0, 1] indicating how reflective the sphere is.
 * Refractivity -- Double in [0, 1] indicating how refractive the sphere is.
 * Index -- Positive double indicating how much light bends when entering/exiting the sphere. 
@@ -66,6 +67,7 @@ REFLECTIVITY 1
 REFRACTIVITY 1
 INDEX 1.4
 ROTATION 180 180 90
+NORMAL file/path2.tga
 ```
 
 The lines describing a sphere must end with a line containing `DONE` by itself.

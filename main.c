@@ -119,7 +119,7 @@ int parseInput(FILE* fp, char* out) {
                 double reflection = 0;
                 Rgb* color = NULL;
                 Texture* texture = NULL;
-                Texture* map = makeTexture("data/normal.tga");
+                Texture* map = NULL;
                 if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
                 if (sscanf(line, "%lf %lf %lf %lf", &x, &y, &z, &r) != 4) return 1;
                 Vec3* center = makeVec3(x, y, z);
@@ -133,6 +133,7 @@ int parseInput(FILE* fp, char* out) {
                         char* path = calloc(LINE_LENGTH, sizeof(char));
                         if (sscanf(line + strlen(token) + 1, "%s", path) != 1) return 1;
                         texture = makeTexture(path);
+                        free(path);
                     } else if (strcmp(token, "COLOR") == 0) {
                         unsigned char r, g, b;
                         if (sscanf(line + strlen(token) + 1, "%hhu %hhu %hhu", &r, &g, &b) != 3) return 1;
@@ -145,6 +146,11 @@ int parseInput(FILE* fp, char* out) {
                         if (sscanf(line + strlen(token) + 1, "%lf", &reflection) != 1) return 1;
                     } else if (strcmp(token, "REFRACTIVITY") == 0) {
                         if (sscanf(line + strlen(token) + 1, "%lf", &refraction) != 1) return 1;
+                    } else if (strcmp(token, "NORMAL") == 0) {
+                        char* path = calloc(LINE_LENGTH, sizeof(char));
+                        if (sscanf(line + strlen(token) + 1, "%s", path) != 1) return 1;
+                        map = makeTexture(path);
+                        free(path);
                     }
                     free(token);
                 }
