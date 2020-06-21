@@ -1,9 +1,0 @@
-1 1 1
-0 0 0 1 0 0 0
-0 0 0 255 255 255
-1
-SPHERE
-5 0 0 3
-COLOR 255 0 0
-NORMAL data/bumpy.tga
-DONE
