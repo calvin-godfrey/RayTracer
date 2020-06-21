@@ -7,21 +7,18 @@ Ray* makeRay(Vec3* from, Vec3* to) {
     Vec3* newTo = sub(to, from);
     normalize(newTo);
     ray -> from = from;
-    ray -> to = to;
     ray -> dir = newTo;
-    ray -> pointDir = 0;
     return ray;
 }
 
 void freeRay(Ray* ray) {
-    if (ray -> pointDir) free(ray -> to);
     free(ray -> dir);
 }
 
 void printRay(Ray* ray) {
     printVec3(ray -> from);
     printf(" -> ");
-    printVec3(ray -> to);
+    printVec3(ray -> dir);
     printf("\n");
 }
 
@@ -37,14 +34,9 @@ Vec3* getPoint(Ray* ray, double time) {
     return ans;
 }
 
-int onLine(Ray* ray, double d) {
-    double toD = (ray -> to -> x - ray -> from -> x) / (ray -> dir -> x);
-    return toD >= d ? 1 : 0;
-}
-
 Ray* makeRayPointDir(Vec3* point, Vec3* dir) {
     Vec3* to = add(point, dir);
     Ray* ray = makeRay(point, to);
-    ray -> pointDir = 1;
+    free(to);
     return ray;
 }

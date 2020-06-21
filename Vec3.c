@@ -168,3 +168,31 @@ void setMag(Vec3* vec) {
     double z = vec -> z;
     vec -> mag2 = x * x + y * y + z * z;
 }
+
+double distance2(Vec3* a, Vec3* b) {
+    double x = a -> x - b -> x;
+    double y = a -> y - b -> y;
+    double z = a -> z - b -> z;
+    return x * x + y * y + z * z;
+}
+
+int maxDimension(Vec3* v) {
+    return v -> x > v -> y ? v -> x > v -> z ? 0 : 2 : v -> y > v -> z ? 1 : 2;
+}
+
+double getCoordinate(Vec3* v, int i) {
+    return i == 0 ? v -> x : i == 1 ? v -> y : v -> z;
+}
+
+Vec3* invVec3(Vec3* v) {
+    return makeVec3(1 / v -> x, 1 / v -> y, 1 / v -> z);
+}
+
+/**
+ * Scale the components of a according to b
+ */
+void multVec3(Vec3* a, Vec3* b) {
+    a -> x *= b -> x;
+    a -> y *= b -> y;
+    a -> z *= b -> z;
+}

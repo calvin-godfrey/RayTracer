@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "Sphere.h"
-#include "Consts.h"
+#include "../Consts.h"
 
 
 static double* getSphereCoordinates(Sphere*, Vec3*);
@@ -24,7 +24,6 @@ Sphere* makeSphere(Vec3* center, double r, Rgb* c, Texture* t, double reflectivi
     sphere -> refractionIndex = refractionIndex;
     Angles* temp = makeAngles(0, 0, 0);
     sphere -> rotation = anglesToQuaternion(temp);
-    sphere -> next = NULL;
     free(temp);
     return sphere;
 }
@@ -41,7 +40,6 @@ Sphere* makeSphereRotation(Vec3* center, double r, Rgb* c, Texture* t, Texture* 
     sphere -> refractionIndex = index;
     Angles* temp = makeAngles(rx * PI / 180, ry * PI / 180, rz * PI / 180);
     sphere -> rotation = anglesToQuaternion(temp);
-    sphere -> next = NULL;
     free(temp);
     return sphere;
 }
@@ -84,7 +82,7 @@ Vec3 sphereIntersect(Sphere* sphere, Ray* ray, double* minDistance) {
     }    
 }
 
-Rgb* getPixelData(Sphere* sphere, Vec3* point) {
+Rgb* getSpherePixel(Sphere* sphere, Vec3* point) {
     if (sphere -> texture == NULL) {
         return makeRgb(sphere -> color -> r, sphere -> color -> g, sphere -> color -> b);
     }
@@ -93,23 +91,6 @@ Rgb* getPixelData(Sphere* sphere, Vec3* point) {
     double y = arr[1];
     free(arr);
     return getPixel(sphere -> texture, x, y);
-}
-
-/**
- * Insert second parameter as the new head, replacing first
- */
-Sphere* insertSphere(Sphere* head, Sphere* new) {
-    new -> next = head;
-    return new;
-}
-
-void freeSpheres(Sphere* head) {
-    Sphere* next = head -> next;
-    if (next != NULL) {
-        freeSpheres(next);
-    }
-    freeSphere(head);
-    free(head);
 }
 
 static double* getSphereCoordinates(Sphere* sphere, Vec3* point) {
@@ -131,8 +112,9 @@ static double* getSphereCoordinates(Sphere* sphere, Vec3* point) {
 
 /**
  * Adjusts the normal (3rd parameter) at point (2nd paramter) according to normal map
+ * TODO: Could this be generic as well?
  */
-void adjustNormal(Sphere* sphere, Vec3* point, Vec3* normal) {
+void adjustSphereNormal(Sphere* sphere, Vec3* point, Vec3* normal) {
     if (sphere -> normalMap == NULL) return;
     double* arr = getSphereCoordinates(sphere, point);
     double x = arr[0];

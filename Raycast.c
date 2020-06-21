@@ -4,8 +4,9 @@
 #include <stdio.h>
 #include <pthread.h>
 #include "Raycast.h"
-#include "Ray.h"
+#include "geometry/Ray.h"
 #include "Consts.h"
+#include "geometry/TriangleMesh.h"
 
 extern uint16_t width;
 extern uint16_t height;
@@ -19,11 +20,11 @@ extern Rgb lightColor;
 
 static double toRads(double deg);
 static int16_t calcCoord(uint16_t, uint16_t);
-static Rgb* trace(Ray*, Sphere*, int);
-static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Sphere*, unsigned char*, uint16_t);
+static Rgb* trace(Ray*, Wrapper*, int);
+static ThreadArgs* makeThreadArgs(Vec3*, Vec3*, Wrapper*, unsigned char*, uint16_t);
 static void* threadCall(void*);
 
-void raycast(FILE* file, Sphere* spheres) {
+void raycast(FILE* file, Wrapper* list) {
     normalize(&cameraDirection);
     // The camera direction uniquely defines a plane that will represent the
     // viewpoint of the renderer.
@@ -64,21 +65,26 @@ void raycast(FILE* file, Sphere* spheres) {
 
     for (uint16_t i = 0; i < height; i++) {
         // The arguments are the two basis vectors, sphere data, pixel array, and row number
-        ThreadArgs* args = makeThreadArgs(r1, r2, spheres, pixels, i);
+        ThreadArgs* args = makeThreadArgs(r1, r2, list, pixels, i);
         fullArgs[i] = args;
 
         // create the thread
-        if (pthread_create(&ids[i], NULL, threadCall, (void*) args) != 0) {
-            printf("Something went wrong: %"PRIu16"\n", i);
-            return;
-        }
-        // threadCall((void*)args);
+        #ifdef MULTITHREAD
+            if (pthread_create(&ids[i], NULL, threadCall, (void*) args) != 0) {
+                printf("Something went wrong: %"PRIu16"\n", i);
+                return;
+            }
+        #else
+            threadCall((void*)args);
+        #endif
     }
 
     // make sure that all of the threads finish execution before writing pixel data to file
-    for (uint16_t i = 0; i < height; i++) {
-        pthread_join(ids[i], NULL);
-    }
+    #ifdef MULTITHREAD
+        for (uint16_t i = 0; i < height; i++) {
+            pthread_join(ids[i], NULL);
+        }
+    #endif
 
     fwrite(pixels, sizeof(unsigned char), 3 * width * height, file);
     free(pixels);
@@ -109,15 +115,11 @@ static void* threadCall(void* args) {
     Vec3* dir = makeVec3(0, 0, 0);
     Ray* ray = malloc(sizeof(Ray));
     ray -> from = &cameraLocation;
-    ray -> pointDir = 0;
-    Vec3 to;
     
     for (uint16_t j = 0; j < width; j++) {
         incVec3(scaledV2, step);
         setAddVec3(dir, temp, scaledV2);
         normalize(dir);
-        setAddVec3(&to, &cameraLocation, dir);
-        ray -> to = &to;
         ray -> dir = dir;
         Rgb* color = trace(ray, arguments -> spheres, 0);
         if (color == NULL) color = makeRgb(135, 206, 235); // sky color
@@ -136,21 +138,36 @@ static void* threadCall(void* args) {
     return NULL;
 }
 
-static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
-    Sphere* head = spheres;
+static Rgb* trace(Ray* ray, Wrapper* list, int depth) {
+    Wrapper* head = list;
     double minDistance = INFTY;
-    Sphere* hit = NULL;
+    Wrapper* hit = NULL;
     Vec3 normalHit = {INFTY, INFTY, INFTY, 0.0};
     int index = 0;
     int i = -1;
-    // find which sphere the ray hits
+    // find which object the ray hits
     while (head != NULL) {
         i++;
         double before = minDistance;
-        Vec3 normal = sphereIntersect(head, ray, &minDistance);
-        if (normal.x == INFTY) { // normalized, only one check is necessary
-            head = head -> next;
-            continue;
+        Vec3 normal;
+        switch(head -> type) {
+            case SPHERE: ; // empty statement to satisfy the compiler
+                normal = sphereIntersect((Sphere*) (head -> ptr), ray, &minDistance);
+                if (normal.x == INFTY) { // normalized, only one check is necessary
+                    head = head -> next;
+                    continue;
+                }
+                break;
+            case MESH: ;
+                normal = meshIntersect((Mesh*)(head -> ptr), ray, &minDistance);
+                if (normal.x == INFTY) {
+                    head = head -> next;
+                    continue;
+                }
+                break;
+            default:
+                printf("ERROR: Unexpected wrapper type %d found\n", head -> type);
+                return NULL;
         }
         if (before != minDistance) {
             hit = head;
@@ -162,16 +179,32 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
 
     if (normalHit.x == INFTY) {
         return NULL;
-    } else {
+    } else { // hit
         normalize(&normalHit);
         Vec3* hitLocation = getPoint(ray, minDistance);
-        adjustNormal(hit, hitLocation, &normalHit);
-        Rgb restColor = {0, 0, 0};
-        Rgb* baseColor = getPixelData(hit, hitLocation);
+        Rgb* baseColor = getObjColor(hit, hitLocation);
+        double refractivity = 0.0, reflectivity = 0.0, refractionIndex = 0.0;
+
+        // get surface data depending on type
+        switch(hit -> type) {
+            case SPHERE:
+                refractivity = ((Sphere*)(hit -> ptr)) -> refractivity;
+                reflectivity = ((Sphere*)(hit -> ptr)) -> reflectivity;
+                refractionIndex = ((Sphere*)(hit -> ptr)) -> refractionIndex;
+                break;
+            case MESH:
+                refractivity = ((Mesh*)(hit -> ptr)) -> refractivity;
+                reflectivity = ((Mesh*)(hit -> ptr)) -> reflectivity;
+                refractionIndex = ((Mesh*)(hit -> ptr)) -> refractionIndex;
+                break;
+            default:
+                break;
+        }
+
+        adjustObjNormal(hit, hitLocation, &normalHit);
         multiplyColors(baseColor, &lightColor);
 
         int inside = 0;
-
         double dotProd = dot(ray -> dir, &normalHit);
 
         if (dotProd > 0) {
@@ -180,7 +213,7 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
             dotProd *= -1;
         }
 
-        if ((hit -> reflectivity > 0 || hit -> refractivity > 0) && depth < MAX_DEPTH) {
+        if ((reflectivity > 0 || refractivity > 0) && depth < MAX_DEPTH) {
             Rgb* refractionColor = makeRgb(0, 0, 0);
             double ratio = -dotProd; // both normal vectors
             double fresnel = 0.2 + 0.8 * (1 - ratio) * (1 - ratio); // TODO: make this better?
@@ -190,12 +223,12 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
             Vec3 rayOrigin = {hitLocation -> x + normalHit.x * SMALL, hitLocation -> y + normalHit.y * SMALL, hitLocation -> z + normalHit.z * SMALL, 0.0};
 
             Ray* newRay = makeRayPointDir(&rayOrigin, reflectDir);
-            Rgb* reflectionColor = trace(newRay, spheres, depth + 1);
+            Rgb* reflectionColor = trace(newRay, list, depth + 1);
             if (reflectionColor == NULL) reflectionColor = makeRgb(255, 255, 255);
 
-            if (hit -> refractivity > 0) {
+            if (refractivity > 0) {
                 free(refractionColor);
-                double index = inside ? hit -> refractionIndex : 1/ hit -> refractionIndex;
+                double index = inside ? refractionIndex : 1 / refractionIndex;
                 Vec3* refrDir = refractVector(ray -> dir, &normalHit, index, dotProd);
                 if (refrDir == NULL) {
                     refractionColor = makeRgb(0, 0, 0);
@@ -203,15 +236,14 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
                     normalize(refrDir);
                     setVec3(newRay -> from, hitLocation -> x - normalHit.x * SMALL, hitLocation -> y - normalHit.y * SMALL, hitLocation -> z - normalHit.z * SMALL);
                     copyVec3(newRay -> dir, refrDir);
-                    setAddVec3(newRay -> to, newRay -> from, refrDir);
-                    refractionColor = trace(newRay, spheres, depth + 1);
+                    refractionColor = trace(newRay, list, depth + 1);
                     if (refractionColor == NULL) refractionColor = makeRgb(135, 206, 235); // sky color
                     free(refrDir);
                 }
             }
 
-            scale(reflectionColor, fresnel * hit -> reflectivity * 0.5);
-            scale(refractionColor, (1 - fresnel) * hit -> refractivity * 0.5);
+            scale(reflectionColor, fresnel * reflectivity * 0.5);
+            scale(refractionColor, (1 - fresnel) * refractivity * 0.5);
             
             incColor(reflectionColor, refractionColor);
             multiplyColors(reflectionColor, baseColor);
@@ -224,11 +256,14 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
             return reflectionColor;
         }
 
+        // not reflective or refractive
+
         Ray* lightRay = makeRay(&light, hitLocation);
+        double distSquared = distance2(&light, hitLocation);
         double dummy = INFTY;
         int shadow = 0;
-        // Check all other spheres to see if there is a shadow
-        head = spheres;
+        // Check all other objects to see if there is a shadow
+        head = list;
         i = -1;
         while (head != NULL) {
             i++;
@@ -236,18 +271,19 @@ static Rgb* trace(Ray* ray, Sphere* spheres, int depth) {
                 head = head -> next;
                 continue;
             }
-            Vec3 normal = sphereIntersect(head, lightRay, &dummy);
-            if (normal.x != INFTY && onLine(lightRay, dummy) == 1) {
+            Vec3 normal = sphereIntersect((Sphere*) (head -> ptr), lightRay, &dummy);
+            if (normal.x != INFTY && dummy * dummy < distSquared) {
+                // ensure intersection falls between light and hitlocation
                 shadow = 1;
                 dummy = INFTY;
                 break;
             }
             head = head -> next;
         }
+        
         double d = -dot(&normalHit, lightRay -> dir);
         
-        scale(baseColor, shadow == 1 ? 0.0 : fmax(0.0, d));
-        incColor(baseColor, &restColor);
+        scale(baseColor, shadow == 1 ? 0.0 : fmax(0.0, d)); // TODO: Brightness decrease with distance
         free(hitLocation);
         freeRay(lightRay);
         free(lightRay);
@@ -265,7 +301,7 @@ static int16_t calcCoord(uint16_t coord, uint16_t value) {
     return offset;
 }
 
-static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Sphere* spheres, unsigned char* pixels, uint16_t row) {
+static ThreadArgs* makeThreadArgs(Vec3* r1, Vec3* r2, Wrapper* spheres, unsigned char* pixels, uint16_t row) {
     ThreadArgs* args = malloc(sizeof(ThreadArgs));
     args -> step1 = r1;
     args -> step2 = r2;

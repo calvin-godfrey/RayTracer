@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "Quaternion.h"
-#include "Consts.h"
+#include "../Consts.h"
 
 Quaternion* anglesToQuaternion(Angles* a) {
     double yaw = a -> z;

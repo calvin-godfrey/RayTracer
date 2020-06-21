@@ -30,4 +30,9 @@ void setVec3(Vec3*, double, double, double);
 void setAddVec3(Vec3*, Vec3*, Vec3*);
 Vec3 initVec3(double, double, double);
 void setMag(Vec3*);
+double distance2(Vec3*, Vec3*);
+int maxDimension(Vec3*);
+double getCoordinate(Vec3*, int);
+Vec3* invVec3(Vec3*);
+void multVec3(Vec3*, Vec3*);
 #endif

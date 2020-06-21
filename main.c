@@ -6,11 +6,15 @@
 #include <string.h>
 #include "Raycast.h"
 #include "Color.h"
-#include "Sphere.h"
-#include "Vec3.h"
+#include "geometry/Sphere.h"
+#include "geometry/TriangleMesh.h"
+#include "math/Vec3.h"
 #include "Consts.h"
 #include "Texture.h"
-#include "Quaternion.h"
+#include "math/Quaternion.h"
+#include "math/Transform.h"
+#include "math/Matrix4.h"
+#include "ObjectWrapper.h"
 
 uint16_t width;
 uint16_t height;
@@ -50,7 +54,7 @@ int main(int argc, char** argv) {
     if (argc == 2 && strcmp(argv[1], "--help") == 0) {
         printf("Usage:\n");
         printf("    raycaster <description file> <width> <height> <outputfile prefix>\n");
-        printf("    e.g. raycaster 640 480 file.tga\n");
+        printf("    e.g. raycaster input.txt 640 480 file.tga\n");
         printf("    Note that the image generated uses the tga format\n");
         return 1;
     } else if (argc != 5) {
@@ -60,16 +64,65 @@ int main(int argc, char** argv) {
     srand(time(0));
     setGlobalVariables(argv);
 
-    FILE* input = fopen(argv[1], "r");
-    if (input == NULL) {
-        printf("Failure to open file %s\n", argv[1]);
-        return 1;
-    }
+    char* fileName = calloc(100, sizeof(char));
+    sprintf(fileName, "%s000.tga", argv[4]);
+    printf("Preparing for %s\n", fileName);
+    FILE* outFile = fopen(fileName, "w+");
+    writeHeader(outFile);
 
-    if (parseInput(input, argv[4])) {
-        printf("Something went wrong\n");
-        return 1;
-    }
+    cameraLocation.x = -2;
+    cameraLocation.y = 0;
+    cameraLocation.z = 0;
+    cameraDirection.x = 1;
+    cameraDirection.y = 0;
+    cameraDirection.z = 0;
+    cameraDirection.mag2 = 1;
+    light.x = -12;
+    light.y = 0;
+    light.z = 0;
+    lightColor.r = (unsigned char) 255;
+    lightColor.g = (unsigned char) 255;
+    lightColor.b = (unsigned char) 255;
+
+    Wrapper* head = makeWrapper();
+    Mesh* mesh = malloc(sizeof(Mesh));
+    Matrix4 matrix = makeMatrix4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); // identiy
+    Transform t = makeTransform(&matrix);
+    mesh -> toWorld = &t;
+    mesh -> nTriangles = 1;
+    mesh -> nVert = 3;
+    mesh -> vertInd = malloc(3 * sizeof(int));
+    mesh -> vertInd[0] = 0;
+    mesh -> vertInd[1] = 1;
+    mesh -> vertInd[2] = 2;
+    mesh -> p = malloc(3 * sizeof(Vec3));
+    mesh -> p[0] = (Vec3) {0, 0, 1, 1};
+    mesh -> p[1] = (Vec3) {0, -1, -1, sqrt(2)};
+    mesh -> p[2] = (Vec3) {0, 1, -1, sqrt(2)};
+    mesh -> n = NULL;
+    mesh -> t = NULL;
+    Vec3* low = makeVec3(0, -1, -1);
+    Vec3* high = makeVec3(0, 1, 1);
+    BoundingBox* box = makeBoundingBox(low, high);
+    mesh -> box = box;
+    mesh -> reflectivity = 0.0;
+    mesh -> refractivity = 0.0;
+    mesh -> refractionIndex = 0.0;
+    head -> ptr = mesh;
+    head -> type = MESH;
+    raycast(outFile, head);
+
+
+    // FILE* input = fopen(argv[1], "r");
+    // if (input == NULL) {
+    //     printf("Failure to open file %s\n", argv[1]);
+    //     return 1;
+    // }
+
+    // if (parseInput(input, argv[4])) {
+    //     printf("Something went wrong\n");
+    //     return 1;
+    // }
     return 0;
 }
 
@@ -93,6 +146,8 @@ int parseInput(FILE* fp, char* out) {
         FILE* outFile = fopen(fileName, "w+");
         writeHeader(outFile);
 
+        
+
         if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
         int n;
         if (sscanf(line, "%d", &n) != 1) return 1;
@@ -104,7 +159,7 @@ int parseInput(FILE* fp, char* out) {
             if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
             if (setLight(line)) return 1;
         }
-        Sphere* head = NULL;
+        Wrapper* head = makeWrapper();
         for (int j = 0; j < n; j++) {
             if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
             char type[LINE_LENGTH];
@@ -155,17 +210,22 @@ int parseInput(FILE* fp, char* out) {
                     free(token);
                 }
                 Sphere* sphere = makeSphereRotation(center, r, color, texture, map, reflection, refraction, index, rx, ry, rz);
-                if (head == NULL) {
-                    head = sphere;
+                if (head -> type == -1) {
+                    head -> type = SPHERE;
+                    head -> ptr = sphere;
                 } else {
-                    head = insertSphere(head, sphere);
+                    Wrapper* temp = makeWrapper();
+                    temp -> type = SPHERE;
+                    temp -> ptr = sphere;
+                    temp -> next = head;
+                    head = temp;
                 }
             }
         }
         printf("Writing to %s\n", fileName);
         raycast(outFile, head);
         free(fileName);
-        freeSpheres(head);
+        freeList(head);
         fclose(outFile);
     }
     return 0;
