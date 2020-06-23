@@ -35,33 +35,54 @@ static BoundingBox* genWorldBox(Mesh* mesh, int* v) {
     return makeBoundingBox(min, max);
 }
 
-int intersectTriangle(Ray* ray, Triangle* triangle, double tmin, double tmax, SurfaceHit* s) {
+double intersectTriangle(Ray* ray, Triangle* triangle, double tmin, double tmax, SurfaceHit* s) {
     Mesh* mesh = triangle -> mesh;
     int* arr = triangle -> vert;
     Vec3* dir = ray -> dir;
     Vec3 p0 = mesh -> p[arr[0]];
     Vec3 p1 = mesh -> p[arr[1]];
     Vec3 p2 = mesh -> p[arr[2]];
+    // if (arr[1] == 2) {
+    //     printf("--------------\n");
+    //     printVec3(&p0);
+    //     printf("\n");
+    //     printVec3(&p1);
+    //     printf("\n");
+    //     printVec3(&p2);
+    //     printf("\n");
+    // }
     // first, find normal vector
     Vec3 temp1, temp2;
-    setVec3(&temp1, -p0.x + p1.x, -p0.y + p1.y, -p0.z + p2.z);
+    setVec3(&temp1, -p0.x + p1.x, -p0.y + p1.y, -p0.z + p1.z);
     setVec3(&temp2, -p0.x + p2.x, -p0.y + p2.y, -p0.z + p2.z);
     Vec3* pvec = cross(dir, &temp2); // TODO: verify orientation
     
     double det = dot(&temp1, pvec);
 
+    // if (arr[1] == 2) {
+    //     printf("=================\n");
+    //     printVec3(&temp1);
+    //     printf("\n");
+    //     printVec3(&temp2);
+    //     printf("\n");
+    // }
+
     double invDet = 1 / det;
     Vec3* tvec = sub(ray -> from, &p0);
     double u = dot(pvec, tvec) * invDet;
-    if (u < 0 || u > 1) return 0;
+
+    if (u < 0 || u > 1) {free(tvec);free(pvec); return INFTY;}
 
     Vec3* qvec = cross(tvec, &temp1);
     double v = dot(qvec, dir) * invDet;
-    if (v <  0 || u + v > 1) return 0;
+    free(tvec);
+    if (v <  0 || u + v > 1) {free(qvec);free(pvec); return INFTY;}
 
     double t = dot(qvec, &temp2) * invDet;
-    // TODO: Fill out SurfaceHit
-    return t > tmin && t < tmax ? 1 : 0; // make sure intersection point falls at proper point
+    // TODO: Fill out SurfaceHit and not free pvec (normal)
+    free(qvec);
+    free(pvec);
+    return t > tmin && t < tmax ? t : INFTY; // make sure intersection point falls at proper point
 
 
     // Complicated way that I don't understand, might use later if it's faster

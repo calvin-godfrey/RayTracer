@@ -13,7 +13,7 @@ int intersectsBox(Ray* ray, BoundingBox* box) {
     double tymax = inv -> y * ((inv -> y < 0 ? box -> min -> y : box -> max -> y) - ray -> from -> y);
     double tymin = inv -> y * ((inv -> y < 0 ? box -> max -> y : box -> min -> y) - ray -> from -> y);
 
-    if ((tmin > tymax) || (tymin > tmax)) return 0;
+    if ((tmin > tymax) || (tymin > tmax)) { free(inv); return 0;}
 
     if (tymin > tmin) tmin = tymin;
     if (tymax < tmax) tmax = tymax;
@@ -21,10 +21,12 @@ int intersectsBox(Ray* ray, BoundingBox* box) {
     double tzmax = inv -> z * ((inv -> z < 0 ? box -> min -> z : box -> max -> z) - ray -> from -> z);
     double tzmin = inv -> z * ((inv -> z < 0 ? box -> max -> z : box -> min -> z) - ray -> from -> z);
 
-    if ((tmin > tzmax) || (tzmin > tmax)) return 0;
+    if ((tmin > tzmax) || (tzmin > tmax)) { free(inv); return 0;}
 
     if (tzmin > tmin) tmin = tzmin;
     if (tzmax < tmax) tmax = tzmax;
+
+    free(inv);
 
     double t = tmin;
     if (t < 0) {

@@ -8,10 +8,12 @@
 struct _Triangle {
     Mesh* mesh;
     int* vert;
+    int* norm;
+    int* uv;
 };
 
 typedef struct _Triangle Triangle;
 
-int intersectTriangle(Ray*, Triangle*, double, double, SurfaceHit*);
+double intersectTriangle(Ray*, Triangle*, double, double, SurfaceHit*);
 
 #endif

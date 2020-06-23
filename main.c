@@ -15,6 +15,7 @@
 #include "math/Transform.h"
 #include "math/Matrix4.h"
 #include "ObjectWrapper.h"
+#include "util/Parser.h"
 
 uint16_t width;
 uint16_t height;
@@ -28,20 +29,6 @@ Rgb lightColor;
 int frames;
 
 int parseInput(FILE*, char* out);
-static int setCamera(char*);
-static int setLight(char*);
-static char* getFirstToken(char*);
-
-static void writeHeader(FILE* file) {
-    // 800x600 image, 24 bits per pixel
-    unsigned char header[18] = {
-        0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        (unsigned char)(width & 0x00FF), (unsigned char)((width & 0xFF00) / 256),
-        (unsigned char)(height & 0x00FF), (unsigned char)((height & 0xFF00) / 256),
-        0x18, 0x20 //0x18 is 24 bits per pixel, 0x20 means that the data for the first pixel goes in the top left corner
-    };
-    fwrite(header, sizeof(char), 18, file);
-}
 
 static void setGlobalVariables(char** argv) {
     sscanf(argv[2], "%"SCNu16, &width);
@@ -64,53 +51,90 @@ int main(int argc, char** argv) {
     srand(time(0));
     setGlobalVariables(argv);
 
-    char* fileName = calloc(100, sizeof(char));
-    sprintf(fileName, "%s000.tga", argv[4]);
-    printf("Preparing for %s\n", fileName);
-    FILE* outFile = fopen(fileName, "w+");
-    writeHeader(outFile);
-
-    cameraLocation.x = -2;
+    Mesh* mesh = malloc(sizeof(Mesh));
+    Triangle** arr = parseMesh("data/obj.obj", mesh);
+    Wrapper* head = makeWrapper();
+    head -> ptr = mesh;
+    head -> type = MESH;
+    cameraLocation.x = 0;
     cameraLocation.y = 0;
-    cameraLocation.z = 0;
-    cameraDirection.x = 1;
+    cameraLocation.z = -5;
+    cameraDirection.x = 0;
     cameraDirection.y = 0;
-    cameraDirection.z = 0;
+    cameraDirection.z = 1;
     cameraDirection.mag2 = 1;
-    light.x = -12;
-    light.y = 0;
-    light.z = 0;
+    light.x = 0;
+    light.y = 10;
+    light.z = -3;
     lightColor.r = (unsigned char) 255;
     lightColor.g = (unsigned char) 255;
     lightColor.b = (unsigned char) 255;
 
-    Wrapper* head = makeWrapper();
-    Mesh* mesh = malloc(sizeof(Mesh));
-    Matrix4 matrix = makeMatrix4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); // identiy
-    Transform t = makeTransform(&matrix);
-    mesh -> toWorld = &t;
-    mesh -> nTriangles = 1;
-    mesh -> nVert = 3;
-    mesh -> vertInd = malloc(3 * sizeof(int));
-    mesh -> vertInd[0] = 0;
-    mesh -> vertInd[1] = 1;
-    mesh -> vertInd[2] = 2;
-    mesh -> p = malloc(3 * sizeof(Vec3));
-    mesh -> p[0] = (Vec3) {0, 0, 1, 1};
-    mesh -> p[1] = (Vec3) {0, -1, -1, sqrt(2)};
-    mesh -> p[2] = (Vec3) {0, 1, -1, sqrt(2)};
-    mesh -> n = NULL;
-    mesh -> t = NULL;
-    Vec3* low = makeVec3(0, -1, -1);
-    Vec3* high = makeVec3(0, 1, 1);
-    BoundingBox* box = makeBoundingBox(low, high);
-    mesh -> box = box;
-    mesh -> reflectivity = 0.0;
-    mesh -> refractivity = 0.0;
-    mesh -> refractionIndex = 0.0;
-    head -> ptr = mesh;
-    head -> type = MESH;
+    mesh -> box = NULL;
+    char* fileName = calloc(100, sizeof(char));
+    sprintf(fileName, "%s.tga", argv[4]);
+    printf("Preparing for %s\n", fileName);
+    FILE* outFile = fopen(fileName, "w+");
+    writeHeader(outFile);
+
     raycast(outFile, head);
+
+    // for (int i = 0; i < 360; i++) {
+
+    //     char* fileName = calloc(100, sizeof(char));
+    //     sprintf(fileName, "%s%03d.tga", argv[4], i);
+    //     printf("Preparing for %s\n", fileName);
+    //     FILE* outFile = fopen(fileName, "w+");
+    //     writeHeader(outFile);
+
+    //     cameraLocation.x = -2;
+    //     cameraLocation.y = 0;
+    //     cameraLocation.z = -1;
+    //     cameraDirection.x = 1;
+    //     cameraDirection.y = 0;
+    //     cameraDirection.z = 0;
+    //     cameraDirection.mag2 = 1;
+    //     light.x = -12;
+    //     light.y = 0;
+    //     light.z = 0;
+    //     lightColor.r = (unsigned char) 255;
+    //     lightColor.g = (unsigned char) 255;
+    //     lightColor.b = (unsigned char) 255;
+
+    //     Wrapper* head = makeWrapper();
+    //     Mesh* mesh = malloc(sizeof(Mesh));
+    //     Matrix4 matrix = makeMatrix4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); // identiy
+    //     Transform t = makeTransform(&matrix);
+    //     mesh -> toWorld = &t;
+    //     mesh -> nTriangles = 1;
+    //     mesh -> nVert = 3;
+    //     mesh -> vertInd = malloc(3 * sizeof(int));
+    //     mesh -> vertInd[0] = 0;
+    //     mesh -> vertInd[1] = 1;
+    //     mesh -> vertInd[2] = 2;
+    //     mesh -> p = malloc(3 * sizeof(Vec3));
+    //     mesh -> p[0] = (Vec3) {sin(i * PI / 180), 0, -1 + 2 * cos(i * PI / 180), 1};
+    //     mesh -> p[1] = (Vec3) {0, -1, -1, sqrt(2)};
+    //     mesh -> p[2] = (Vec3) {0, 1, -1, sqrt(2)};
+    //     mesh -> n = NULL;
+    //     Vec3* low = makeVec3(fmin(0, sin(i * PI / 180)), -1, fmin(-1, -1 + 2 * cos(i * PI / 180)));
+    //     Vec3* high = makeVec3(fmax(0, sin(i * PI / 180)), 1, fmax(-1, -1 + 2 * cos(i * PI / 180)));
+    //     BoundingBox* box = makeBoundingBox(low, high);
+    //     mesh -> box = box;
+    //     mesh -> reflectivity = 0.0;
+    //     mesh -> refractivity = 0.0;
+    //     mesh -> refractionIndex = 0.0;
+    //     head -> ptr = mesh;
+    //     head -> type = MESH;
+    //     raycast(outFile, head);
+    //     fclose(outFile);
+    //     free(mesh -> p);
+    //     free(mesh -> vertInd);
+    //     free(mesh);
+    //     free(low);
+    //     free(high);
+    //     free(head);
+    // }
 
 
     // FILE* input = fopen(argv[1], "r");
@@ -124,144 +148,4 @@ int main(int argc, char** argv) {
     //     return 1;
     // }
     return 0;
-}
-
-int parseInput(FILE* fp, char* out) {
-    char line[LINE_LENGTH];
-    if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-    int camFlag, lightFlag;
-    if (sscanf(line, "%d %d %d", &frames, &camFlag, &lightFlag) != 3) return 1;
-    if (camFlag) {
-        if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-        if (setCamera(line)) return 1;
-    }
-    if (lightFlag) {
-        if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-        if (setLight(line)) return 1;
-    }
-    for (int i = 0; i < frames; i++) {
-        char* fileName = calloc(100, sizeof(char));
-        sprintf(fileName, "%s%03d.tga", out, i);
-        printf("Preparing for %s\n", fileName);
-        FILE* outFile = fopen(fileName, "w+");
-        writeHeader(outFile);
-
-        
-
-        if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-        int n;
-        if (sscanf(line, "%d", &n) != 1) return 1;
-        if (!camFlag) {
-            if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-            if (setCamera(line)) return 1;
-        }
-        if (!lightFlag) {
-            if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-            if (setLight(line)) return 1;
-        }
-        Wrapper* head = makeWrapper();
-        for (int j = 0; j < n; j++) {
-            if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-            char type[LINE_LENGTH];
-            if (sscanf(line, "%s", type) != 1) return 1;
-            if (strcmp(type, "SPHERE") == 0) {
-                double x, y, z, r;
-                double rx = 0;
-                double ry = 0;
-                double rz = 0;
-                double index = 0;
-                double refraction = 0;
-                double reflection = 0;
-                Rgb* color = NULL;
-                Texture* texture = NULL;
-                Texture* map = NULL;
-                if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-                if (sscanf(line, "%lf %lf %lf %lf", &x, &y, &z, &r) != 4) return 1;
-                Vec3* center = makeVec3(x, y, z);
-                while (1) {
-                    if (fgets(line, LINE_LENGTH, fp) == NULL) return 1;
-                    char* token = getFirstToken(line);
-                    if (strcmp(token, "DONE") == 0) {
-                        free(token);
-                        break;
-                    } else if (strcmp(token, "TEXTURE") == 0) {
-                        char* path = calloc(LINE_LENGTH, sizeof(char));
-                        if (sscanf(line + strlen(token) + 1, "%s", path) != 1) return 1;
-                        texture = makeTexture(path);
-                        free(path);
-                    } else if (strcmp(token, "COLOR") == 0) {
-                        unsigned char r, g, b;
-                        if (sscanf(line + strlen(token) + 1, "%hhu %hhu %hhu", &r, &g, &b) != 3) return 1;
-                        color = makeRgb(r, g, b);
-                    } else if (strcmp(token, "ROTATION") == 0) {
-                        if (sscanf(line + strlen(token) + 1, "%lf %lf %lf", &rx, &ry, &rz) != 3) return 1;
-                    } else if (strcmp(token, "INDEX") == 0) {
-                        if (sscanf(line + strlen(token) + 1, "%lf", &index) != 1) return 1;
-                    } else if (strcmp(token, "REFLECTIVITY") == 0) {
-                        if (sscanf(line + strlen(token) + 1, "%lf", &reflection) != 1) return 1;
-                    } else if (strcmp(token, "REFRACTIVITY") == 0) {
-                        if (sscanf(line + strlen(token) + 1, "%lf", &refraction) != 1) return 1;
-                    } else if (strcmp(token, "NORMAL") == 0) {
-                        char* path = calloc(LINE_LENGTH, sizeof(char));
-                        if (sscanf(line + strlen(token) + 1, "%s", path) != 1) return 1;
-                        map = makeTexture(path);
-                        free(path);
-                    }
-                    free(token);
-                }
-                Sphere* sphere = makeSphereRotation(center, r, color, texture, map, reflection, refraction, index, rx, ry, rz);
-                if (head -> type == -1) {
-                    head -> type = SPHERE;
-                    head -> ptr = sphere;
-                } else {
-                    Wrapper* temp = makeWrapper();
-                    temp -> type = SPHERE;
-                    temp -> ptr = sphere;
-                    temp -> next = head;
-                    head = temp;
-                }
-            }
-        }
-        printf("Writing to %s\n", fileName);
-        raycast(outFile, head);
-        free(fileName);
-        freeList(head);
-        fclose(outFile);
-    }
-    return 0;
-}
-
-static int setCamera(char* line) {
-    double cx, cy, cz, dx, dy, dz, dt;
-    if (sscanf(line, "%lf %lf %lf %lf %lf %lf %lf\n", &cx, &cy, &cz, &dx, &dy, &dz, &dt) != 7) return 1;
-    cameraLocation.x = cx;
-    cameraLocation.y = cy;
-    cameraLocation.z = cz;
-    cameraDirection.x = dx;
-    cameraDirection.y = dy;
-    cameraDirection.z = dz;
-    cameraDirection.mag2 = dx * dx + dy * dy + dz * dz;
-    cameraOrientation = dt * PI / 180;
-    return 0;
-}
-
-static int setLight(char* line) {
-    double cx, cy, cz;
-    unsigned char r, g, b;
-    if (sscanf(line, "%lf %lf %lf %hhu %hhu %hhu\n", &cx, &cy, &cz, &r, &g, &b) != 6) return 1;
-    light.x = cx;
-    light.y = cy;
-    light.z = cz;
-    lightColor.r = r;
-    lightColor.g = g;
-    lightColor.b = b;
-    return 0;
-}
-
-static char* getFirstToken(char* line) {
-    char* token = calloc(LINE_LENGTH, sizeof(char));
-    int i = 0;
-    while (line[i] != ' ' && line[i] != '\n') i++;
-    strncpy(token, line, i);
-    return token;
 }

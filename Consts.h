@@ -12,6 +12,7 @@
 // #define MULTITHREAD
 #define SPHERE (1)
 #define MESH (2)
+#define BIG_INT (1 << 30)
 
 
 #endif

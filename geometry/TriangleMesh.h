@@ -9,12 +9,11 @@ struct _Mesh {
     Transform* toWorld;
     int nTriangles;
     int nVert;
-    int* vertInd; // of size 3 * nTriangles
-    // ith triangle has vertices at p[vertIndex[3 * i]], ...
+    int* vertInd; // of size 3 * nTriangles, TODO: Need this?
+    // ith triangle has vertices at p[vertInd[3 * i]], ...
     Vec3* p; // vertices
-    Vec3* n; // normal at vertex
-    Vec3* t; // tangent at vertex
-    // TODO: UV space?
+    Vec3* n; // normal at vertex, interpolated over
+    Vec3* uv; // uv coordinates of vertices
     BoundingBox* box; // in world space
     double refractivity;
     double reflectivity;
