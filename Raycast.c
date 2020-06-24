@@ -117,6 +117,7 @@ static void* threadCall(void* args) {
     ray -> from = &cameraLocation;
     
     for (uint16_t j = 0; j < width; j++) {
+        if (j % 20 == 0) printf("Tracing %"PRIu16", %"PRIu16"\n", i, j);
         incVec3(scaledV2, step);
         setAddVec3(dir, temp, scaledV2);
         normalize(dir);

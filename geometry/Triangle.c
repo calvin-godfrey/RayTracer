@@ -42,15 +42,6 @@ double intersectTriangle(Ray* ray, Triangle* triangle, double tmin, double tmax,
     Vec3 p0 = mesh -> p[arr[0]];
     Vec3 p1 = mesh -> p[arr[1]];
     Vec3 p2 = mesh -> p[arr[2]];
-    // if (arr[1] == 2) {
-    //     printf("--------------\n");
-    //     printVec3(&p0);
-    //     printf("\n");
-    //     printVec3(&p1);
-    //     printf("\n");
-    //     printVec3(&p2);
-    //     printf("\n");
-    // }
     // first, find normal vector
     Vec3 temp1, temp2;
     setVec3(&temp1, -p0.x + p1.x, -p0.y + p1.y, -p0.z + p1.z);

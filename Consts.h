@@ -9,7 +9,7 @@
 #define SMALL (0.0001)
 #define TGA "tga"
 #define LINE_LENGTH (100)
-// #define MULTITHREAD
+#define MULTITHREAD
 #define SPHERE (1)
 #define MESH (2)
 #define BIG_INT (1 << 30)

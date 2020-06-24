@@ -49,9 +49,10 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
             return NULL;
         } else if (strcmp(token, "f") == 0) {
             int count = 0;
-            char* temp = calloc(20, 1);
+            char* temp = calloc(30, 1);
             int index = 1;
-            while (sscanf(line + strlen(token) + index, "%[0-9/]", temp) == 1) {
+            while (sscanf(line + strlen(token) + index, "%[0-9/-]", temp) == 1) {
+                // printf("found %s in %s", temp, line);
                 index += strlen(temp) + 1;
                 count++;
             }
@@ -67,6 +68,7 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
     // allocate memory for the arrays
     mesh -> nTriangles = numTri;
     mesh -> nVert = numV;
+    printf("Vert: %d\n", numV);
     Vec3* vArray = malloc(numV * sizeof(Vec3));
     Vec3* vnArray = malloc(numVn * sizeof(Vec3));
     Vec3* uvArray = malloc(numVt * sizeof(Vec3)); // only two components actually used
@@ -100,9 +102,9 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
             uvArray[numVt++] = (Vec3) {u, v, 0, 0};
         } else if (strcmp(token, "f") == 0) {
             int count = 0;
-            char* temp = calloc(20, 1);
+            char* temp = calloc(30, 1);
             int index = 1;
-            while (sscanf(line + strlen(token) + index, "%[0-9/]", temp) == 1) {
+            while (sscanf(line + strlen(token) + index, "%[0-9/-]", temp) == 1) {
                 index += strlen(temp) + 1;
                 count++;
             }
@@ -110,10 +112,10 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
             char** arr = malloc(sizeof(char*) * (count + 2));
             index = 1;
             int i = 0;
-            while (sscanf(line + strlen(token) + index, "%[0-9/]", temp) == 1) {
+            while (sscanf(line + strlen(token) + index, "%[0-9/-]", temp) == 1) {
                 index += strlen(temp) + 1;
-                arr[i] = calloc(20, sizeof(char));
-                strncpy(arr[i++], temp, 19);
+                arr[i] = calloc(30, sizeof(char));
+                strncpy(arr[i++], temp, 29);
             }
             for (int j = 1; j < count + 1; j++) {
                 Triangle* triangle = malloc(sizeof(Triangle));
@@ -126,9 +128,17 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
                 parseVertex(s1, &v1, &vt1, &vn1);
                 parseVertex(s2, &v2, &vt2, &vn2);
                 parseVertex(s3, &v3, &vt3, &vn3);
-                triangle -> vert[0] = v1 < 0 ? numV - v1 + 1 : v1 - 1; // if vertex index is negative, go back from current
-                triangle -> vert[1] = v2 < 0 ? numV - v2 + 1 : v2 - 1;
-                triangle -> vert[2] = v3 < 0 ? numV - v3 + 1 : v3 - 1;
+                triangle -> vert[0] = v1 < 0 ? numV + v1 : v1 - 1; // if vertex index is negative, go back from current
+                triangle -> vert[1] = v2 < 0 ? numV + v2 : v2 - 1;
+                triangle -> vert[2] = v3 < 0 ? numV + v3 : v3 - 1;
+                if (distance2(&vArray[triangle -> vert[1]], &vArray[triangle -> vert[2]]) > 100) {
+                    Vec3 vv1 = vArray[triangle -> vert[1]];
+                    Vec3 vv2 = vArray[triangle -> vert[2]];
+                    printf("in line %sDistance from %d %d is %f, numV: %d\n", line, v2, v3, distance2(&vv1, &vv2), numV);
+                    printVec3(&vv1);
+                    printVec3(&vv2);
+                    printf("\n");
+                }
                 meshIndices[3 * triangleIndex] = triangle -> vert[0];
                 meshIndices[3 * triangleIndex + 1] = triangle -> vert[1];
                 meshIndices[3 * triangleIndex + 2] = triangle -> vert[2];

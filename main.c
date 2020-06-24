@@ -53,24 +53,39 @@ int main(int argc, char** argv) {
 
     Mesh* mesh = malloc(sizeof(Mesh));
     Triangle** arr = parseMesh("data/obj.obj", mesh);
+    double minX = INFTY, minY = INFTY, minZ = INFTY, maxX = -INFTY, maxY = -INFTY, maxZ = -INFTY;
+    for (int i = 0; i < mesh -> nVert; i++) {
+        Vec3 v = mesh -> p[i];
+        minX = v.x < minX ? v.x : minX;
+        minY = v.y < minY ? v.y : minY;
+        minZ = v.z < minZ ? v.z : minZ;
+
+        maxX = v.x > maxX ? v.x : maxX;
+        maxY = v.y > maxY ? v.y : maxY;
+        maxZ = v.z > maxZ ? v.z : maxZ;
+    }
+    Vec3* min = makeVec3(minX, minY, minZ);
+    Vec3* max = makeVec3(maxX, maxY, maxX);
     Wrapper* head = makeWrapper();
     head -> ptr = mesh;
     head -> type = MESH;
     cameraLocation.x = 0;
-    cameraLocation.y = 0;
-    cameraLocation.z = -5;
+    cameraLocation.y = 90;
+    cameraLocation.z = 90;
     cameraDirection.x = 0;
-    cameraDirection.y = 0;
-    cameraDirection.z = 1;
+    cameraDirection.y = -0.1;
+    cameraDirection.z = -1;
     cameraDirection.mag2 = 1;
+    normalize(&cameraDirection);
+    cameraOrientation = 3 * PI / 4;
     light.x = 0;
-    light.y = 10;
-    light.z = -3;
+    light.y = 100;
+    light.z = 100;
     lightColor.r = (unsigned char) 255;
     lightColor.g = (unsigned char) 255;
     lightColor.b = (unsigned char) 255;
 
-    mesh -> box = NULL;
+    mesh -> box = makeBoundingBox(min, max);
     char* fileName = calloc(100, sizeof(char));
     sprintf(fileName, "%s.tga", argv[4]);
     printf("Preparing for %s\n", fileName);

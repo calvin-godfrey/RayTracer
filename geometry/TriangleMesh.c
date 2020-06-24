@@ -14,11 +14,9 @@ Vec3 meshIntersect(Mesh* mesh, Ray* ray, double* dist) {
         triangle.mesh = mesh;
         triangle.vert = 3 * i + mesh -> vertInd;
         double curr = intersectTriangle(ray, &triangle, 0, INFTY, NULL);
-        // if (curr < INFTY) printf("dist: %f, %d\n", curr, triangle.vert[1]);
         if (curr != INFTY && curr < smallest) {
             smallest = curr;
             // calculate normal using points
-            // printf("%d\n", triangle.vert[1]);
             Vec3 a = mesh -> p[triangle.vert[0]];
             Vec3 b = mesh -> p[triangle.vert[1]];
             Vec3 c = mesh -> p[triangle.vert[2]];
