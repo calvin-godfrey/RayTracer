@@ -7,6 +7,7 @@
 #include "geometry/Ray.h"
 #include "Consts.h"
 #include "geometry/TriangleMesh.h"
+#include "geometry/SurfaceHit.h"
 
 extern uint16_t width;
 extern uint16_t height;
@@ -142,6 +143,7 @@ static void* threadCall(void* args) {
 static Rgb* trace(Ray* ray, Wrapper* list, int depth) {
     Wrapper* head = list;
     double minDistance = INFTY;
+    SurfaceHit* surfaceHit = NULL;
     Wrapper* hit = NULL;
     Vec3 normalHit = {INFTY, INFTY, INFTY, 0.0};
     int index = 0;
@@ -151,6 +153,7 @@ static Rgb* trace(Ray* ray, Wrapper* list, int depth) {
         i++;
         double before = minDistance;
         Vec3 normal;
+        SurfaceHit* temp = NULL;
         switch(head -> type) {
             case SPHERE: ; // empty statement to satisfy the compiler
                 normal = sphereIntersect((Sphere*) (head -> ptr), ray, &minDistance);
@@ -160,8 +163,8 @@ static Rgb* trace(Ray* ray, Wrapper* list, int depth) {
                 }
                 break;
             case MESH: ;
-                normal = meshIntersect((Mesh*)(head -> ptr), ray, &minDistance);
-                if (normal.x == INFTY) {
+                temp = meshIntersect((Mesh*)(head -> ptr), ray, &minDistance);
+                if (temp == NULL) {
                     head = head -> next;
                     continue;
                 }
@@ -171,19 +174,21 @@ static Rgb* trace(Ray* ray, Wrapper* list, int depth) {
                 return NULL;
         }
         if (before != minDistance) {
+            if (surfaceHit != NULL) free(surfaceHit);
+            surfaceHit = temp;
             hit = head;
-            normalHit = normal;
             index = i;
         }
         head = head -> next;
     }
 
-    if (normalHit.x == INFTY) {
+    if (surfaceHit == NULL) {
         return NULL;
     } else { // hit
+        normalHit = *surfaceHit -> n;
         normalize(&normalHit);
-        Vec3* hitLocation = getPoint(ray, minDistance);
-        Rgb* baseColor = getObjColor(hit, hitLocation);
+        Vec3* hitLocation = surfaceHit ->  p;
+        Rgb* baseColor = surfaceHit -> color;
         double refractivity = 0.0, reflectivity = 0.0, refractionIndex = 0.0;
 
         // get surface data depending on type
@@ -266,23 +271,25 @@ static Rgb* trace(Ray* ray, Wrapper* list, int depth) {
         // Check all other objects to see if there is a shadow
         head = list;
         i = -1;
-        while (head != NULL) {
-            i++;
-            if (i == index) {
-                head = head -> next;
-                continue;
-            }
-            Vec3 normal = sphereIntersect((Sphere*) (head -> ptr), lightRay, &dummy);
-            if (normal.x != INFTY && dummy * dummy < distSquared) {
-                // ensure intersection falls between light and hitlocation
-                shadow = 1;
-                dummy = INFTY;
-                break;
-            }
-            head = head -> next;
-        }
+        // while (head != NULL) { // TODO: Make this loop work
+        //     i++;
+        //     if (i == index) {
+        //         head = head -> next;
+        //         continue;
+        //     }
+        //     Vec3 normal = sphereIntersect((Sphere*) (head -> ptr), lightRay, &dummy);
+        //     if (normal.x != INFTY && dummy * dummy < distSquared) {
+        //         // ensure intersection falls between light and hitlocation
+        //         shadow = 1;
+        //         dummy = INFTY;
+        //         break;
+        //     }
+        //     head = head -> next;
+        // }
         
         double d = -dot(&normalHit, lightRay -> dir);
+
+        // if (d < 0) printf("BAD\n");
         
         scale(baseColor, shadow == 1 ? 0.0 : fmax(0.0, d)); // TODO: Brightness decrease with distance
         free(hitLocation);

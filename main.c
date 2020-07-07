@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     setGlobalVariables(argv);
 
     Mesh* mesh = malloc(sizeof(Mesh));
-    Triangle** arr = parseMesh("data/obj.obj", mesh);
+    parseMesh("cat/12221_Cat_v1_l3.obj", mesh);
     double minX = INFTY, minY = INFTY, minZ = INFTY, maxX = -INFTY, maxY = -INFTY, maxZ = -INFTY;
     for (int i = 0; i < mesh -> nVert; i++) {
         Vec3 v = mesh -> p[i];
@@ -64,23 +64,24 @@ int main(int argc, char** argv) {
         maxY = v.y > maxY ? v.y : maxY;
         maxZ = v.z > maxZ ? v.z : maxZ;
     }
+    printf("(%f, %f, %f), (%f, %f, %f)\n", minX, minY, minZ, maxX, maxY, maxZ);
     Vec3* min = makeVec3(minX, minY, minZ);
-    Vec3* max = makeVec3(maxX, maxY, maxX);
+    Vec3* max = makeVec3(maxX, maxY, maxZ);
     Wrapper* head = makeWrapper();
     head -> ptr = mesh;
     head -> type = MESH;
-    cameraLocation.x = 0;
-    cameraLocation.y = 90;
-    cameraLocation.z = 90;
-    cameraDirection.x = 0;
-    cameraDirection.y = -0.1;
-    cameraDirection.z = -1;
+    cameraLocation.x = 11;
+    cameraLocation.y = -30;
+    cameraLocation.z = 25;
+    cameraDirection.x = -2;
+    cameraDirection.y = 4;
+    cameraDirection.z = -0.3;
     cameraDirection.mag2 = 1;
     normalize(&cameraDirection);
-    cameraOrientation = 3 * PI / 4;
-    light.x = 0;
-    light.y = 100;
-    light.z = 100;
+    cameraOrientation = PI / 2 + 0.5;
+    light.x = 2000;
+    light.y = -8000;
+    light.z = 1000;
     lightColor.r = (unsigned char) 255;
     lightColor.g = (unsigned char) 255;
     lightColor.b = (unsigned char) 255;

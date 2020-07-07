@@ -14,6 +14,4 @@ struct _Triangle {
 
 typedef struct _Triangle Triangle;
 
-double intersectTriangle(Ray*, Triangle*, double, double, SurfaceHit*);
-
 #endif

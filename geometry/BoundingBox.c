@@ -7,34 +7,56 @@
 int intersectsBox(Ray* ray, BoundingBox* box) {
     Vec3* inv = invVec3(ray -> dir);
 
-    double tmax = inv -> x * ((inv -> x < 0 ? box -> min -> x : box -> max -> x) - ray -> from -> x);
-    double tmin = inv -> x * ((inv -> x < 0 ? box -> max -> x : box -> min -> x) - ray -> from -> x);
+    double t1 = (box -> min -> x - ray -> from -> x) * inv -> x;
+    double t2 = (box -> max -> x - ray -> from -> x) * inv -> x;
+ 
+    double tmin = fmin(t1, t2);
+    double tmax = fmax(t1, t2);
+ 
+    t1 = (box -> min -> y - ray -> from -> y) * inv -> y;
+    t2 = (box -> max -> y - ray -> from -> y) * inv -> y;
+ 
+    tmin = fmax(tmin, fmin(fmin(t1, t2), tmax));
+    tmax = fmin(tmax, fmax(fmax(t1, t2), tmin));
 
-    double tymax = inv -> y * ((inv -> y < 0 ? box -> min -> y : box -> max -> y) - ray -> from -> y);
-    double tymin = inv -> y * ((inv -> y < 0 ? box -> max -> y : box -> min -> y) - ray -> from -> y);
-
-    if ((tmin > tymax) || (tymin > tmax)) { free(inv); return 0;}
-
-    if (tymin > tmin) tmin = tymin;
-    if (tymax < tmax) tmax = tymax;
-
-    double tzmax = inv -> z * ((inv -> z < 0 ? box -> min -> z : box -> max -> z) - ray -> from -> z);
-    double tzmin = inv -> z * ((inv -> z < 0 ? box -> max -> z : box -> min -> z) - ray -> from -> z);
-
-    if ((tmin > tzmax) || (tzmin > tmax)) { free(inv); return 0;}
-
-    if (tzmin > tmin) tmin = tzmin;
-    if (tzmax < tmax) tmax = tzmax;
-
+    t1 = (box -> min -> z - ray -> from -> z) * inv -> z;
+    t2 = (box -> max -> z - ray -> from -> z) * inv -> z;
+ 
+    tmin = fmax(tmin, fmin(fmin(t1, t2), tmax));
+    tmax = fmin(tmax, fmax(fmax(t1, t2), tmin));
+    
     free(inv);
 
-    double t = tmin;
-    if (t < 0) {
-        t = tmax;
-        if (t < 0) return 0;
-    }
+    return tmax > fmax(tmin, 0.0);
 
-    return 1;
+    // double tmax = inv -> x * ((inv -> x < 0 ? box -> min -> x : box -> max -> x) - ray -> from -> x);
+    // double tmin = inv -> x * ((inv -> x < 0 ? box -> max -> x : box -> min -> x) - ray -> from -> x);
+
+    // double tymax = inv -> y * ((inv -> y < 0 ? box -> min -> y : box -> max -> y) - ray -> from -> y);
+    // double tymin = inv -> y * ((inv -> y < 0 ? box -> max -> y : box -> min -> y) - ray -> from -> y);
+
+    // if ((tmin > tymax) || (tymin > tmax)) { free(inv); return 0;}
+
+    // if (tymin > tmin) tmin = tymin;
+    // if (tymax < tmax) tmax = tymax;
+
+    // double tzmax = inv -> z * ((inv -> z < 0 ? box -> min -> z : box -> max -> z) - ray -> from -> z);
+    // double tzmin = inv -> z * ((inv -> z < 0 ? box -> max -> z : box -> min -> z) - ray -> from -> z);
+
+    // if ((tmin > tzmax) || (tzmin > tmax)) { free(inv); return 0;}
+
+    // if (tzmin > tmin) tmin = tzmin;
+    // if (tzmax < tmax) tmax = tzmax;
+
+    // free(inv);
+
+    // double t = tmin;
+    // if (t < 0) {
+    //     t = tmax;
+    //     if (t < 0) return 0;
+    // }
+
+    // return 1;
 
     // __m256d min = _mm256_load_pd((double*) box -> min);
     // __m256d max = _mm256_load_pd((double*) box -> max);

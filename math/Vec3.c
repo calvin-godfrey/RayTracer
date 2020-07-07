@@ -196,3 +196,12 @@ void multVec3(Vec3* a, Vec3* b) {
     a -> y *= b -> y;
     a -> z *= b -> z;
 }
+
+void lerpVec3(Vec3* out, Vec3* a, Vec3* b, double d) {
+    double dx = a -> x - b -> x;
+    double dy = a -> y - b -> y;
+    double dz = a -> z - b -> z;
+    out -> x = b -> x + dx * d;
+    out -> y = b -> y + dy * d;
+    out -> z = b -> z + dz * d;
+}

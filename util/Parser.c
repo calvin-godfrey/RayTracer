@@ -19,6 +19,7 @@ extern uint16_t width, height;
 static int setCamera(char*);
 static int setLight(char*);
 static void parseVertex(char*, int*, int*, int*);
+static int countMaterials(char*);
 
 Triangle** parseMesh(char* path, Mesh* mesh) {
     FILE* file = fopen(path, "r");
@@ -28,13 +29,13 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
     }
     // we first have to count everything before we can malloc memory
     char* line = calloc(LINE_LENGTH, sizeof(char));
-    int numV = 0, numVt = 0, numVn = 0, numTri = 0;
+    int numV = 0, numVt = 0, numVn = 0, numTri = 0, numMat = 0;
     while (1) {
         if (fgets(line, LINE_LENGTH, file) == NULL) break;
         char* token = getFirstToken(line);
         if (strcmp(token, "mtllib") == 0) {
-            free(token);
-            continue; // TODO: allow parse of mtl file
+            char* path = getFirstToken(line + strlen(token) + 1);
+            numMat += countMaterials(path);
         } else if (strcmp(token, "v") == 0) {
             numV++;
         } else if (strcmp(token, "vp") == 0) {
@@ -68,14 +69,18 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
     // allocate memory for the arrays
     mesh -> nTriangles = numTri;
     mesh -> nVert = numV;
-    printf("Vert: %d\n", numV);
+    printf("Vert: %d, %d, %d\n", numV, numVn, numVt);
     Vec3* vArray = malloc(numV * sizeof(Vec3));
     Vec3* vnArray = malloc(numVn * sizeof(Vec3));
     Vec3* uvArray = malloc(numVt * sizeof(Vec3)); // only two components actually used
-    int* meshIndices = malloc(numTri * 3 * sizeof(int));
-    Triangle** triangleArray = calloc(numTri + 1, sizeof(Triangle*));
-    numV = 0, numVt = 0, numVn = 0;
+    int* pIndices = malloc(numTri * 3 * sizeof(int));
+    int* nIndices = calloc(numTri * 3, sizeof(int));
+    int* uvIndices = calloc(numTri * 3, sizeof(int));
+    int* matIndices = calloc(numTri, sizeof(int));
+    Material** matArray = malloc(numMat * sizeof(Material*));
+    numV = 0, numVt = 0, numVn = 0, numMat;
     int triangleIndex = 0;
+    int currMat = 0;
     while (1) {
         if (fgets(line, LINE_LENGTH, file) == NULL) break;
         char* token = getFirstToken(line);
@@ -83,6 +88,7 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
             double x, y, z;
             if (sscanf(line, "v %lf %lf %lf", &x, &y, &z) != 3) {
                 printf("Failed to parse object line %s", line);
+                fclose(file);
                 return NULL;
             }
             vArray[numV++] = (Vec3) {x, y, z, 0}; // mag component doesn't matter
@@ -90,6 +96,7 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
             double x, y, z;
             if (sscanf(line, "vn %lf %lf %lf", &x, &y, &z) != 3) {
                 printf("Failed to parse object line %s", line);
+                fclose(file);
                 return NULL;
             }
             vnArray[numVn++] = (Vec3) {x, y, z, x*x+y*y+z*z};
@@ -97,6 +104,7 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
             double u, v;
             if (sscanf(line, "vt %lf %lf", &u, &v) != 2) {
                 printf("Failed to parse object line %s", line);
+                fclose(file);
                 return NULL;
             }
             uvArray[numVt++] = (Vec3) {u, v, 0, 0};
@@ -118,9 +126,6 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
                 strncpy(arr[i++], temp, 29);
             }
             for (int j = 1; j < count + 1; j++) {
-                Triangle* triangle = malloc(sizeof(Triangle));
-                triangle -> mesh = mesh;
-                triangle -> vert = malloc(3 * sizeof(int));
                 char* s1 = arr[0];
                 char* s2 = arr[j];
                 char* s3 = arr[j+1];
@@ -128,53 +133,106 @@ Triangle** parseMesh(char* path, Mesh* mesh) {
                 parseVertex(s1, &v1, &vt1, &vn1);
                 parseVertex(s2, &v2, &vt2, &vn2);
                 parseVertex(s3, &v3, &vt3, &vn3);
-                triangle -> vert[0] = v1 < 0 ? numV + v1 : v1 - 1; // if vertex index is negative, go back from current
-                triangle -> vert[1] = v2 < 0 ? numV + v2 : v2 - 1;
-                triangle -> vert[2] = v3 < 0 ? numV + v3 : v3 - 1;
-                if (distance2(&vArray[triangle -> vert[1]], &vArray[triangle -> vert[2]]) > 100) {
-                    Vec3 vv1 = vArray[triangle -> vert[1]];
-                    Vec3 vv2 = vArray[triangle -> vert[2]];
-                    printf("in line %sDistance from %d %d is %f, numV: %d\n", line, v2, v3, distance2(&vv1, &vv2), numV);
-                    printVec3(&vv1);
-                    printVec3(&vv2);
-                    printf("\n");
-                }
-                meshIndices[3 * triangleIndex] = triangle -> vert[0];
-                meshIndices[3 * triangleIndex + 1] = triangle -> vert[1];
-                meshIndices[3 * triangleIndex + 2] = triangle -> vert[2];
+
+                pIndices[3 * triangleIndex    ] = v1 < 0 ? numV + v1 : v1 - 1; // if vertex index is negative, go back from current
+                pIndices[3 * triangleIndex + 1] = v2 < 0 ? numV + v2 : v2 - 1;
+                pIndices[3 * triangleIndex + 2] = v3 < 0 ? numV + v3 : v3 - 1;
                 if (vt1 == BIG_INT) {
-                    triangle -> uv = NULL;
+                    uvIndices[3 * triangleIndex    ] = -1; // mark as not known
+                    uvIndices[3 * triangleIndex + 1] = -1;
+                    uvIndices[3 * triangleIndex + 2] = -1;
                 } else {
-                    triangle -> uv = malloc(3 * sizeof(int));
-                    triangle -> uv[0] = vt1 < 0 ? numVt - vt1 + 1 : vt1 - 1;
-                    triangle -> uv[1] = vt2 < 0 ? numVt - vt2 + 1 : vt2 - 1;
-                    triangle -> uv[2] = vt3 < 0 ? numVt - vt3 + 1 : vt3 - 1;
+                    uvIndices[3 * triangleIndex    ] = vt1 < 0 ? numVt + vt1 : vt1 - 1;
+                    uvIndices[3 * triangleIndex + 1] = vt2 < 0 ? numVt + vt2 : vt2 - 1;
+                    uvIndices[3 * triangleIndex + 2] = vt3 < 0 ? numVt + vt3 : vt3 - 1;
                 }
                 if (vn1 == BIG_INT) {
-                    triangle -> norm = NULL;
+                    nIndices[3 * triangleIndex    ] = -1;
+                    nIndices[3 * triangleIndex + 1] = -1;
+                    nIndices[3 * triangleIndex + 2] = -1;
                 } else {
-                    triangle -> norm = malloc(3 * sizeof(int));
-                    triangle -> norm[0] = vn1 < 0 ? numVn - vn1 + 1 : vn1 - 1;
-                    triangle -> norm[1] = vn2 < 0 ? numVn - vn2 + 1 : vn2 - 1;
-                    triangle -> norm[2] = vn3 < 0 ? numVn - vn3 + 1 : vn3 - 1;
+                    nIndices[3 * triangleIndex    ] = vn1 < 0 ? numVn + vn1 : vn1 - 1;
+                    nIndices[3 * triangleIndex + 1] = vn2 < 0 ? numVn + vn2 : vn2 - 1;
+                    nIndices[3 * triangleIndex + 2] = vn3 < 0 ? numVn + vn3 : vn3 - 1;
                 }
-                triangleArray[triangleIndex++] = triangle;
+                matIndices[triangleIndex] = currMat - 1;
+                triangleIndex++;
             }
             for (int j = 0; j < count + 2; j++) free(arr[j]);
             free(arr);
             free(temp);
+        } else if (strcmp(token, "mtllib") == 0) {
+            char* path = getFirstToken(line + strlen(token) + 1); // get second token, technically
+            parseMtl(path, matArray, &currMat);
+            free(path);
+        } else if (strcmp(token, "usemtl") == 0) {
+            char* matName = getFirstToken(line + strlen(token) + 1);
+            for (int i = 0; i < numMat; i++) {
+                Material* m = matArray[i];
+                if (m == NULL) continue;
+                if (strcmp(m -> name, matName) == 0) {
+                    currMat = i;
+                    break;
+                }
+            }
         }
         free(token);
     }
     mesh -> p = vArray;
     mesh -> n = vnArray;
     mesh -> uv = uvArray;
-    mesh -> vertInd = meshIndices;
-    return triangleArray;
+    mesh -> pInd = pIndices;
+    mesh -> nInd = nIndices;
+    mesh -> uvInd = uvIndices;
+    mesh -> matInd = matIndices;
+    mesh -> mats = matArray;
+    fclose(file);
+    return NULL;
+}
+
+void parseMtl(char* path, Material** arr, int* ind) {
+    FILE* f = fopen(path, "r");
+    if (f == NULL) {
+        printf("Error opening .mtl file %s\n", path);
+        return;
+    }
+    char* line = calloc(LINE_LENGTH, sizeof(char));
+    while (1) {
+        if (fgets(line, LINE_LENGTH, f) == NULL) break;
+        char* token =  getFirstToken(line);
+        if (strcmp(token, "newmtl") == 0) {
+            arr[(*ind)++] = malloc(sizeof(Material));
+            arr[*ind - 1] -> name = calloc(LINE_LENGTH, sizeof(int));
+            strncpy(arr[*ind - 1] -> name, token, strlen(token));
+        } else if (strcmp(token, "map_Ka") == 0) {
+            char* newPath = getFirstToken(line + strlen(token) + 1);
+            arr[*ind - 1] -> texture = makeTexture(newPath);
+            if (arr[*ind - 1] -> texture == NULL) printf("BAD\n");
+        }
+        free(token);
+    }
+}
+
+static int countMaterials(char* path) {
+    FILE* f = fopen(path, "r");
+    if (f == NULL) {
+        printf("Error opening .mtl file %s\n", path);
+        return 0;
+    }
+    int count = 0;
+    char* line = calloc(LINE_LENGTH, sizeof(char));
+    while (1) {
+        if (fgets(line, LINE_LENGTH, f) == NULL) break;
+        char* token = getFirstToken(line);
+        if (strcmp(token, "newmtl") == 0) count++;
+        free(token);
+    }
+    return count;
 }
 
 static void parseVertex(char* s, int* v, int* vt, int* vn) {
     if (sscanf(s, "%d/%d/%d", v, vt, vn) == 3) return;
+    if (sscanf(s, "%d/%d", v, vt) == 2) {*vn = BIG_INT; return;}
     *vt = BIG_INT;
     if (sscanf(s, "%d//%d", v, vn) == 2) return;
     *vn = BIG_INT;
@@ -184,9 +242,11 @@ static void parseVertex(char* s, int* v, int* vt, int* vn) {
 
 char* getFirstToken(char* line) {
     char* token = calloc(LINE_LENGTH, sizeof(char));
+    int start = 0;
+    while (line[start] == ' ' || line[start] == '\t') start++;
     int i = 0;
-    while (line[i] != ' ' && line[i] != '\n') i++;
-    strncpy(token, line, i);
+    while (line[start + i] != ' ' && line[start + i] != '\n' && line[start + i] != '\r') i++;
+    strncpy(token, line + start, i);
     return token;
 }
 

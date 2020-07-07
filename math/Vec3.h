@@ -35,4 +35,5 @@ int maxDimension(Vec3*);
 double getCoordinate(Vec3*, int);
 Vec3* invVec3(Vec3*);
 void multVec3(Vec3*, Vec3*);
+void lerpVec3(Vec3*, Vec3*, Vec3*, double);
 #endif

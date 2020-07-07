@@ -61,7 +61,7 @@ void freeTexture(Texture* t) {
  */
 Rgb* getPixel(Texture* t, double x, double y) {
     unsigned char red, green, blue;
-    x = t -> flipX == -1 ? 1 - x : x;
+    x = t -> flipX != -1 ? 1 - x : x;
     y = t -> flipY == -1 ? 1 - y : y;
 
     uint16_t xCoord = (uint16_t)(t -> width * x);
